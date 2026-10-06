@@ -1,0 +1,17 @@
+# Caddy terminates TLS and forwards to the two backends on the VPS.
+#
+# VPS_HOST is the box's address written as a free wildcard-DNS name, so no domain is needed:
+#   export VPS_HOST=3-110-45-67.sslip.io        # the Elastic IP with dots → dashes
+# Caddy then fetches a Let's Encrypt certificate for each hostname on first request.
+# (DuckDNS works too: point two subdomains at the IP and use those names instead.)
+#
+# Ports 80 and 443 must be open in the EC2 security group. 3001 and 4000 must NOT be: only Caddy
+# should be able to reach the backends.
+
+api.{$VPS_HOST} {
+	reverse_proxy localhost:4000
+}
+
+oms-api.{$VPS_HOST} {
+	reverse_proxy localhost:3001
+}

@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "../../.."
+		},
+		{
+			"path": "../../../../Fonepoints-oms"
+		},
+		{
+			"path": "../../../../miniapp-esewa"
+		},
+		{
+			"path": "../../../../fonepoints-business"
+		}
+	],
+	"settings": {}
+}

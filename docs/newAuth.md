@@ -1,0 +1,12 @@
+# new flow
+- firstly, OMS backend will register all the merchant under one company i.e fonepoints manually before starting any process and for that company OMS backend will also give apiKey.
+- as soon as merchant lands on fonepoints business app, and there will be one of the menu as OMS, and while merchant click that fonepoints frontend will ask for accessToken to fonepoints backend, after that, fonepoints backend will use apiKey and propagate that request to OMS backend and OMS backend will validate that api key and request and then only issue accessToken, afterwards, Fonepoints backend will receive that accessToken and that will be passed to iframe of OMS,
+- after iframe get accessToken, we need to handle that accessToken from OMS frontend by our code and that accessToken will never get expired, 
+- after user see OMS content, whenever they need to or try to call some api get post any then we need to send accessToken along with that api so that according to that token OMS backend will validate and provide us response
+- as we need to handle accessToken from code as if we use sessionStorage while route change and back it might restart sesssion, so instead we should use cookies for it, you can study and choose the better one on yours as well.
+- as our fonepoints-business is angular, we need to build nodeJs backend for it
+- as for OMS frontend both frontend and backend should be on nextJs
+- for database lets use mongodb
+- build everything end-to-end and keep a placeholder for those place where uri apikeys and other things needed,
+- our oms-frontend and angular fonepoints business should be strong but both backend should be just demoable its not mandatory to be strong so that u wont spend much time for it, it should just be able to match above flow little bit secured but no need of heavy engineering for those now
+- if you have any query doubts you can ask me and after final decision u should work continuously as your own decision and preserve existing frontend codes as they are good enough just keep improve existing
