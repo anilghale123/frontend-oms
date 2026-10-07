@@ -11,7 +11,8 @@ import type { NextConfig } from "next";
  * `'self'` stays in the list so OMS can still frame its own pages.
  */
 const EMBED_HOST_ORIGINS = (
-	process.env.NEXT_PUBLIC_EMBED_HOST_ORIGINS || "http://localhost:4200"
+	process.env.NEXT_PUBLIC_EMBED_HOST_ORIGINS ||
+	"http://localhost:4200,https://fonepoints-business.vercel.app"
 )
 	.split(",")
 	.map((origin) => origin.trim())

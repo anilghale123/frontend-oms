@@ -39,7 +39,8 @@ export const IS_MOCK_API = OMS_API_BASE.startsWith("/api/mock");
  * host.
  */
 export const EMBED_HOST_ORIGINS = (
-	process.env.NEXT_PUBLIC_EMBED_HOST_ORIGINS || "http://localhost:4200"
+	process.env.NEXT_PUBLIC_EMBED_HOST_ORIGINS ||
+	"http://localhost:4200,https://fonepoints-business.vercel.app"
 )
 	.split(",")
 	.map((origin) => origin.trim())
