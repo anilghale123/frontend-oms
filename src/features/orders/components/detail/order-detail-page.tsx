@@ -58,6 +58,14 @@ const PRIMARY_ICON: Partial<Record<OrderStatus, LucideIcon>> = {
 export interface OrderDetailPageProps {
 	/** The partner's `reference_id`, from the URL. */
 	referenceId: string;
+	/** Draws the loading state without fetching (see `OrderScreenSkeleton`). */
+	placeholder?: boolean;
+}
+
+export interface OrderDetailLayoutProps {
+	children: ReactNode;
+	/** Draws the order list's loading state without fetching (see `OrderScreenSkeleton`). */
+	placeholder?: boolean;
 }
 
 /**
@@ -66,12 +74,13 @@ export interface OrderDetailPageProps {
  * route layout so the list keeps its filter, search and scroll while the merchant moves between
  * orders. The list hides below `lg`.
  */
-export function OrderDetailLayout({ children }: { children: ReactNode }) {
+export function OrderDetailLayout({ children, placeholder = false }: OrderDetailLayoutProps) {
 	const params = useParams<{ referenceId: string }>();
 	return (
 		<div className="-m-3 flex min-h-0 flex-1 md:-m-4">
 			<OrderListPanel
 				selectedId={decodeURIComponent(params.referenceId ?? "")}
+				placeholder={placeholder}
 				className="hidden lg:flex"
 			/>
 			<div className="flex min-w-0 flex-1 flex-col overflow-y-auto p-3 md:p-4">{children}</div>
@@ -85,12 +94,21 @@ export function OrderDetailLayout({ children }: { children: ReactNode }) {
  * The status actions sit in a highlighted bar at the top of the Fulfillment card: the status's
  * primary action, and a "Change status" menu with every other status.
  */
-export function OrderDetailPage({ referenceId }: OrderDetailPageProps) {
+export function OrderDetailPage({ referenceId, placeholder = false }: OrderDetailPageProps) {
 	const orderRoutes = useOrderRoutes();
 	const back = { href: orderRoutes.queue, label: BACK_LABEL };
-	const { data: order, isLoading, isError, isFetching, refetch, error } = useOrder(referenceId);
+	const {
+		data: order,
+		isLoading,
+		isError,
+		isFetching,
+		refetch,
+		error,
+	} = useOrder(referenceId, {
+		enabled: !placeholder,
+	});
 
-	if (isLoading) {
+	if (placeholder || isLoading) {
 		return (
 			<Page title={referenceId} back={back}>
 				<PageBody>

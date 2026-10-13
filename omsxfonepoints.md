@@ -65,7 +65,7 @@ Read top to bottom. The left column is the portal, the right is OMS.
                                                  APPEARANCE_BOOT_SCRIPT
                                                       │  reads #theme, paints before React
                                                       ▼
-      onLoad() ◄──────── load event ─────────────  page is up, spinner hidden
+      onLoad() ◄──────── load event ─────────────  page is up, skeleton fades
                                                       │
                                                  AppearanceSync
                                                       │  hostOwnsAppearance() → true
@@ -335,10 +335,17 @@ authoritative value is the `host.theme` message arriving in step 12.
 
 ---
 
-### Step 6 · 🟦 FONEPOINTS — `OmsPage.onLoad()` hides the spinner
+### Step 6 · 🟦 FONEPOINTS — `OmsPage.onLoad()` fades the skeleton into the frame
 
-The iframe's `load` event fires → `clearTimeout`, `loaded.set(true)`. The portal's "Loading OMS…"
-overlay disappears.
+Until now the portal has covered the frame with `OmsSkeleton`: OMS's Order Queue in its loading
+state, drawn with OMS's own colours and measurements. The iframe's `load` event fires →
+`clearTimeout`, `loaded.set(true)`, and the skeleton fades out (160 ms) into the frame, which is
+already painting the same skeleton (`OrderScreenSkeleton`, server-rendered while the session
+opens). Nothing moves, so the merchant sees one loading screen from the click to the orders.
+
+The `load` that the frame's initial about:blank document fires as soon as Angular inserts it is
+ignored (`showsInitialBlank()`): counting it hid the cover at once and cancelled the 12-second
+timeout before OMS had even been requested.
 
 ---
 

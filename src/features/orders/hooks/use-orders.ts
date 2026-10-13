@@ -17,26 +17,32 @@ import type {
 import { ORDER_STATUS_LABELS, type Order, type OrderStatus } from "@/lib/domain";
 import { assignRider, getOrder, listOrders, updateOrderStatus } from "../api";
 
+export interface OrderQueryOptions {
+	/** `false` holds the request back, e.g. for a screen drawn before there is a session. */
+	enabled?: boolean;
+}
+
 /**
  * A page of the merchant's orders, filtered and searched by the API.
  *
  * The previous page stays on screen while the next one loads, so paging and filtering do not
  * flash an empty table. Takes no merchant: the token decides whose orders these are.
  */
-export function useOrders(params: ListOrdersParams) {
+export function useOrders(params: ListOrdersParams, { enabled = true }: OrderQueryOptions = {}) {
 	return useQuery({
 		queryKey: queryKeys.orders.list({ ...params }),
 		queryFn: () => listOrders(params),
 		placeholderData: keepPreviousData,
+		enabled,
 	});
 }
 
 /** One order, by the partner's `reference_id`. */
-export function useOrder(referenceId: string) {
+export function useOrder(referenceId: string, { enabled = true }: OrderQueryOptions = {}) {
 	return useQuery({
 		queryKey: queryKeys.orders.detail(referenceId),
 		queryFn: () => getOrder(referenceId),
-		enabled: Boolean(referenceId),
+		enabled: enabled && Boolean(referenceId),
 	});
 }
 

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { EMBED_BASE_PATH } from "@/config/constants";
-import { OrderRoutesProvider } from "@/features/orders";
+import { OrderRoutesProvider, OrderScreenSkeleton } from "@/features/orders";
 import { SessionGate } from "@/features/shell";
 import { AuthProvider } from "@/providers/AuthProvider";
 import { HostChannelProvider } from "@/providers/HostChannelProvider";
@@ -25,7 +25,8 @@ import { HostSync } from "@/providers/HostSync";
  * - `HostSync` follows the host's theme, which it applies transiently (see `auth.md` section 9).
  *
  * `HostSync` sits outside the gate: the theme should follow the portal even while the session is
- * still opening, so the spinner is not light inside a dark portal.
+ * still opening, so the skeleton is not light inside a dark portal. While it opens, the gate draws
+ * the order screen being opened in its loading state (`OrderScreenSkeleton`), not a spinner.
  */
 export default function EmbedLayout({ children }: { children: ReactNode }) {
 	return (
@@ -34,7 +35,7 @@ export default function EmbedLayout({ children }: { children: ReactNode }) {
 				<OrderRoutesProvider basePath={EMBED_BASE_PATH}>
 					<HostSync />
 					<div className="flex min-h-screen flex-col bg-fill1 p-4">
-						<SessionGate>{children}</SessionGate>
+						<SessionGate fallback={<OrderScreenSkeleton />}>{children}</SessionGate>
 					</div>
 				</OrderRoutesProvider>
 			</AuthProvider>

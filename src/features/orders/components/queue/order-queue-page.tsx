@@ -18,11 +18,19 @@ import { OrderStatusTabs, type OrderStatusFilter } from "./order-status-tabs";
 const route = orderRouteTitles.orderQueue;
 const columns = createOrderColumns();
 
+export interface OrderQueuePageProps {
+	/**
+	 * Draws the queue's loading state without fetching. `OrderScreenSkeleton` shows it while OMS
+	 * opens, so the queue that follows starts from the same picture.
+	 */
+	placeholder?: boolean;
+}
+
 /**
  * Merchant order queue (Meat-Management list pattern): a table card with status tabs and search.
  * Paging, the status filter and search all go to the Sales API, which returns newest first.
  */
-export function OrderQueuePage() {
+export function OrderQueuePage({ placeholder = false }: OrderQueuePageProps) {
 	const router = useRouter();
 	const orderRoutes = useOrderRoutes();
 	const [statusFilter, setStatusFilter] = useState<OrderStatusFilter>("all");
@@ -30,12 +38,15 @@ export function OrderQueuePage() {
 	const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 20 });
 	const q = useOrderSearch(search);
 
-	const { data, isLoading, isError, error, refetch } = useOrders({
-		q,
-		status: statusFilter === "all" ? undefined : statusFilter,
-		page: pagination.pageIndex + 1,
-		count: pagination.pageSize,
-	});
+	const { data, isLoading, isError, error, refetch } = useOrders(
+		{
+			q,
+			status: statusFilter === "all" ? undefined : statusFilter,
+			page: pagination.pageIndex + 1,
+			count: pagination.pageSize,
+		},
+		{ enabled: !placeholder },
+	);
 
 	// A new filter or search starts again from the first page.
 	const firstPage = () => setPagination((current) => ({ ...current, pageIndex: 0 }));
@@ -73,7 +84,7 @@ export function OrderQueuePage() {
 						/>
 					}
 					pageSizes={[10, 20, 50, 100]}
-					loading={isLoading}
+					loading={placeholder || isLoading}
 					error={
 						isError ? { title: "Couldn’t load orders", description: toErrorMessage(error) } : null
 					}

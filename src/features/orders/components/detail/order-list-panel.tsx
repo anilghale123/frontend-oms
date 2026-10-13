@@ -33,6 +33,8 @@ function filterLabel(filter: OrderStatusFilter) {
 export interface OrderListPanelProps {
 	/** `reference_id` of the order open in the detail pane; its row is highlighted and scrolled into view. */
 	selectedId: string;
+	/** Draws the loading state without fetching (see `OrderScreenSkeleton`). */
+	placeholder?: boolean;
 	className?: string;
 }
 
@@ -41,17 +43,24 @@ export interface OrderListPanelProps {
  * newest-first rows, and a count footer. Clicking a row opens that order without leaving the list.
  * Filter and search go to the API, like the queue's; the panel shows the newest 50 matches.
  */
-export function OrderListPanel({ selectedId, className }: OrderListPanelProps) {
+export function OrderListPanel({
+	selectedId,
+	placeholder = false,
+	className,
+}: OrderListPanelProps) {
 	const orderRoutes = useOrderRoutes();
 	const [filter, setFilter] = useState<OrderStatusFilter>("all");
 	const [query, setQuery] = useState("");
 	const q = useOrderSearch(query);
-	const { data, isLoading, isError, refetch } = useOrders({
-		q,
-		status: filter === "all" ? undefined : filter,
-		page: 1,
-		count: PANEL_PAGE_SIZE,
-	});
+	const { data, isLoading, isError, refetch } = useOrders(
+		{
+			q,
+			status: filter === "all" ? undefined : filter,
+			page: 1,
+			count: PANEL_PAGE_SIZE,
+		},
+		{ enabled: !placeholder },
+	);
 	const selectedRowRef = useRef<HTMLAnchorElement | null>(null);
 	const visible = data?.orders ?? [];
 
@@ -116,7 +125,7 @@ export function OrderListPanel({ selectedId, className }: OrderListPanelProps) {
 			</div>
 
 			<ScrollArea className="min-h-0 flex-1">
-				{isLoading ? (
+				{placeholder || isLoading ? (
 					<div className="flex flex-col gap-2 p-3">
 						{Array.from({ length: 8 }, (_, i) => (
 							<Skeleton key={i} className="h-12 w-full rounded-md" />

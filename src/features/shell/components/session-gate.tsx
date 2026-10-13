@@ -1,12 +1,17 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Lock } from "lucide-react";
-import { Spinner } from "@/components/ui/spinner";
 import { EmptyState, ErrorState } from "@/components/feedback";
 import { useAuth } from "@/providers/AuthProvider";
 
 export interface SessionGateProps {
-	children: React.ReactNode;
+	children: ReactNode;
+	/**
+	 * What to show while the session opens: the screen's own loading state (the embed layout passes
+	 * `OrderScreenSkeleton`), so opening OMS reads as skeleton → content with no spinner between.
+	 */
+	fallback: ReactNode;
 }
 
 /**
@@ -18,9 +23,9 @@ export interface SessionGateProps {
  *
  * Three states, and the distinction between the last two is the useful part:
  *
- * - **loading** — a spinner. Normally one round trip to `/api/session`, which the cookie answers.
- *   It also covers the handshake when there is no session, or Sales refused the token: OMS has
- *   asked the portal for a token and is waiting for it.
+ * - **loading** — `fallback`, the screen's skeleton. Normally one round trip to `/api/session`,
+ *   which the cookie answers. It also covers the handshake when there is no session, or Sales
+ *   refused the token: OMS has asked the portal for a token and is waiting for it.
  * - **unauthenticated with a reason** — something went wrong and it is worth explaining: a token
  *   refused straight after it was handed over, an ended portal session, an unreachable backend.
  *   Offers a retry, because most of these are transient.
@@ -30,7 +35,7 @@ export interface SessionGateProps {
  * Not mounted on the rider portal. Riders have no account: the Order ID and voucher pair is the
  * credential, so `/deliver` must render for someone holding only a link.
  */
-export function SessionGate({ children }: SessionGateProps) {
+export function SessionGate({ children, fallback }: SessionGateProps) {
 	const { status, reason, reasonKind, retry } = useAuth();
 
 	if (status === "authenticated") {
@@ -39,13 +44,13 @@ export function SessionGate({ children }: SessionGateProps) {
 
 	if (status === "loading") {
 		return (
-			<div
-				className="flex min-h-96 flex-1 flex-col items-center justify-center gap-3"
-				role="status"
-			>
-				<Spinner className="size-6 text-fg-secondary" />
-				<p className="text-sm text-fg-secondary">Opening OMS…</p>
-			</div>
+			<>
+				{/* The skeleton is a silent picture; this says what is happening to a screen reader. */}
+				<p className="sr-only" role="status">
+					Opening OMS…
+				</p>
+				{fallback}
+			</>
 		);
 	}
 
