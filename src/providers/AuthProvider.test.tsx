@@ -17,6 +17,7 @@
 import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiError, apiClient } from "@/lib/api/client";
 import { forgetToken, readRememberedToken } from "@/lib/auth";
 import { HOST_SOURCE, PROTOCOL_VERSION } from "@/lib/host";
@@ -36,13 +37,19 @@ function Probe() {
 	);
 }
 
-function tree() {
+/** The query cache the provider resets after a grant; fresh for every test. */
+let queryClient: QueryClient;
+
+function tree(extra?: React.ReactNode) {
 	return (
-		<HostChannelProvider>
-			<AuthProvider>
-				<Probe />
-			</AuthProvider>
-		</HostChannelProvider>
+		<QueryClientProvider client={queryClient}>
+			<HostChannelProvider>
+				<AuthProvider>
+					<Probe />
+					{extra}
+				</AuthProvider>
+			</HostChannelProvider>
+		</QueryClientProvider>
 	);
 }
 
@@ -147,6 +154,7 @@ async function openWithoutCookie(posted: unknown[]) {
 
 beforeEach(() => {
 	forgetToken();
+	queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 });
 
 afterEach(() => {
@@ -234,6 +242,38 @@ describe("AuthProvider — opening OMS", () => {
 		// The screens' requests now work, and the portal is not told "existing" on top of "new".
 		expect(await loadOrders()).toBeNull();
 		expect(sent(posted, "oms.auth.ok")).toHaveLength(1);
+	});
+
+	it("clears what failed for want of a session once the token is stored", async () => {
+		// A query that had data and then hit the 401 would otherwise come back showing its error
+		// while it refetches. Other failures are left alone.
+		const { parent, posted } = frameWindow();
+		stubFetch({ oms: noSession });
+
+		renderAuth();
+		await waitFor(() => expect(status()).toHaveTextContent("authenticated"));
+		const ordersKey = ["orders", "list"];
+		const otherKey = ["something", "else"];
+		queryClient.setQueryData(ordersKey, { orders: ["kept from before"] });
+		await queryClient
+			.fetchQuery({ queryKey: ordersKey, queryFn: () => apiClient.get("/orders") })
+			.catch(() => {});
+		await queryClient
+			.fetchQuery({
+				queryKey: otherKey,
+				queryFn: () => Promise.reject(new ApiError("Server error", 500, "http_500")),
+			})
+			.catch(() => {});
+		expect(queryClient.getQueryState(ordersKey)?.status).toBe("error");
+		await waitFor(() => expect(sent(posted, "oms.auth.renew")).toHaveLength(1));
+
+		deliverGrant(parent);
+		await waitFor(() => expect(status()).toHaveTextContent("authenticated"));
+
+		await waitFor(() => expect(queryClient.getQueryState(ordersKey)?.status).toBe("pending"));
+		expect(queryClient.getQueryData(ordersKey)).toBeUndefined();
+		// A real failure is not the session's to clear.
+		expect(queryClient.getQueryState(otherKey)?.status).toBe("error");
 	});
 
 	it("asks once when several requests find no session together", async () => {
@@ -359,14 +399,7 @@ describe("AuthProvider — opening OMS", () => {
 		function RetryButton() {
 			return <button onClick={useAuth().retry}>Try again</button>;
 		}
-		render(
-			<HostChannelProvider>
-				<AuthProvider>
-					<Probe />
-					<RetryButton />
-				</AuthProvider>
-			</HostChannelProvider>,
-		);
+		render(tree(<RetryButton />));
 		await waitFor(() => expect(status()).toHaveTextContent("authenticated"));
 		await loadOrders();
 		await waitFor(() => expect(sent(posted, "oms.auth.renew")).toHaveLength(1));

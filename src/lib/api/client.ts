@@ -32,6 +32,7 @@ import {
 import { NO_SESSION_CODE } from "./contracts";
 import {
 	ApiError,
+	SESSION_LOST_CODE,
 	codeFromBody,
 	fieldErrorsFromBody,
 	messageForStatus,
@@ -107,7 +108,7 @@ async function request<T>(
 			forgetToken();
 			notifySessionLost({ reason: missing ? "missing" : "rejected", epoch });
 		}
-		throw new ApiError(SESSION_EXPIRED_MESSAGE, 401, "session_expired");
+		throw new ApiError(SESSION_EXPIRED_MESSAGE, 401, SESSION_LOST_CODE);
 	}
 
 	// Anything but a 401 means the proxy found a session; a success means Sales accepted it.

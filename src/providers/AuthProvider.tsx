@@ -10,6 +10,8 @@ import {
 	useSyncExternalStore,
 	type ReactNode,
 } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { isSessionLost } from "@/lib/api/errors";
 import {
 	SESSION_EXPIRED_MESSAGE,
 	advanceSessionEpoch,
@@ -112,6 +114,7 @@ const subscribeNothing = () => () => {};
 
 export function AuthProvider({ children }: AuthProviderProps) {
 	const channel = useHostChannel();
+	const queryClient = useQueryClient();
 
 	// Whether OMS is framed is known only in the browser. The server and the hydrating render both
 	// say "not yet" (the skeleton); the render after that uses the real answer. This is the
@@ -216,6 +219,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
 				signedInAt.current = Date.now();
 				// Requests still in flight from before belong to the old session now.
 				advanceSessionEpoch();
+				// What failed only for want of a session starts over, so the screens open on their
+				// loading state rather than on the 401 that started the handshake. (A query that
+				// already had data would otherwise show its error while it refetches.)
+				void queryClient.resetQueries({
+					predicate: (query) => isSessionLost(query.state.error),
+				});
 				trace(
 					"auth",
 					`✔ step 21–22 · token stored in the oms_at cookie; session ready${
@@ -236,7 +245,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 				return false;
 			}
 		},
-		[fail],
+		[fail, queryClient],
 	);
 
 	/**

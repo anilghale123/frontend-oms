@@ -12,7 +12,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import type { Order } from "@/lib/domain";
 import { OrderCustomerDetails } from "./order-customer-panel";
 import { OrderActivityList } from "./order-fulfillment";
-import { OrderRiderDetails } from "./order-rider-panel";
+// import { OrderRiderDetails } from "./order-rider-panel"; // rider section hidden for now — see below
 
 type SectionId = "customer" | "rider" | "activity";
 
@@ -27,10 +27,14 @@ export interface OrderSidePanelProps {
 }
 
 /**
- * Customer, Rider and Activity in one card, each a collapsible section split by a divider
+ * Customer and Activity in one card, each a collapsible section split by a divider
  * (Radian `Accordion`, `open` variant, multiple open at once). A closed section shows a
  * one-line summary on its header so merchants rarely need to open it; an open section gets the
  * same divider under its header as the other cards. Long activity logs scroll inside the section.
+ *
+ * The Rider section is commented out for now: the order screens show nothing about riders while
+ * Assign rider is off (`ASSIGN_RIDER_ENABLED` in `@/lib/domain`). Uncomment it, and the
+ * `OrderRiderDetails` import above, to bring it back.
  */
 export function OrderSidePanel({ order }: OrderSidePanelProps) {
 	const eventCount = order.logs.length;
@@ -45,9 +49,9 @@ export function OrderSidePanel({ order }: OrderSidePanelProps) {
 				>
 					<OrderCustomerDetails customer={order.customer} />
 				</Section>
-				<Section value="rider" title="Rider" summary={order.rider?.name || "Not assigned"}>
+				{/* <Section value="rider" title="Rider" summary={order.rider?.name || "Not assigned"}>
 					<OrderRiderDetails rider={order.rider} />
-				</Section>
+				</Section> */}
 				<Section
 					value="activity"
 					title="Activity"

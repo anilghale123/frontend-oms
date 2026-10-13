@@ -18,6 +18,18 @@ export const GENERIC_ERROR_MESSAGE = "Something went wrong. Please try again.";
 /** Code used when the backend does not name one. */
 export const UNKNOWN_ERROR_CODE = "unknown";
 
+/**
+ * `ApiError.code` for a request that failed only because there was no working session (any `401`
+ * through the proxy). It says nothing about the data: the gate takes the screens down and the
+ * portal hands over a token, after which the request is simply made again.
+ */
+export const SESSION_LOST_CODE = "session_expired";
+
+/** True for a failure that only means "no session yet" (see `SESSION_LOST_CODE`). */
+export function isSessionLost(error: unknown): boolean {
+	return error instanceof ApiError && error.code === SESSION_LOST_CODE;
+}
+
 export class ApiError extends Error {
 	/** Machine-readable code from the backend, or `"unknown"`. */
 	readonly code: string;

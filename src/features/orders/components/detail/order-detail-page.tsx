@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { orderRoutes as orderRouteTitles } from "@/config/nav";
 import { ApiError } from "@/lib/api/client";
 import { toErrorMessage } from "@/lib/api/errors";
-import { primaryAction, type Order, type OrderStatus } from "@/lib/domain";
+import { ASSIGN_RIDER_ENABLED, primaryAction, type Order, type OrderStatus } from "@/lib/domain";
 import { useOrderRoutes } from "../../order-routes";
 import { useOrder } from "../../hooks/use-orders";
 import { useOrderStatusChange } from "../../hooks/use-order-status-change";
@@ -24,20 +24,34 @@ import { StatusBadge } from "../status-badge";
 
 const BACK_LABEL = `Back to ${orderRouteTitles.orderQueue.title}`;
 
-/** The next-step bar's copy per status. */
+/**
+ * The next-step bar's copy per status. While Assign rider is off (`ASSIGN_RIDER_ENABLED`) the page
+ * says nothing about riders: a ready order is sent out with "Change status" → Delivering.
+ */
 const NEXT_STEP: Record<OrderStatus, { title: string; description: string }> = {
 	preparing: {
 		title: "Mark the order ready",
 		description: "Pack the item, then mark it ready for delivery.",
 	},
-	ready_for_delivery: {
-		title: "Assign a rider",
-		description: "Record who is delivering it. The order moves to Delivering.",
-	},
-	delivering: {
-		title: "Out for delivery",
-		description: "The rider confirms delivery with the customer’s voucher, or mark it delivered.",
-	},
+	ready_for_delivery: ASSIGN_RIDER_ENABLED
+		? {
+				title: "Assign a rider",
+				description: "Record who is delivering it. The order moves to Delivering.",
+			}
+		: {
+				title: "Ready for delivery",
+				description: "Send the order out, then change its status to Delivering.",
+			},
+	delivering: ASSIGN_RIDER_ENABLED
+		? {
+				title: "Out for delivery",
+				description:
+					"The rider confirms delivery with the customer’s voucher, or mark it delivered.",
+			}
+		: {
+				title: "Out for delivery",
+				description: "Mark it delivered once the customer has it.",
+			},
 	delivered: {
 		title: "Delivered",
 		description: "This order is complete. Change its status only to correct a mistake.",
@@ -90,7 +104,8 @@ export function OrderDetailLayout({ children, placeholder = false }: OrderDetail
 
 /**
  * Merchant order detail in two columns: the work on the left (fulfillment tracker, items, order
- * details) and one collapsible side card on the right (customer open, rider and activity closed).
+ * details) and one collapsible side card on the right (customer open, activity closed; the rider
+ * section is hidden for now).
  * The status actions sit in a highlighted bar at the top of the Fulfillment card: the status's
  * primary action, and a "Change status" menu with every other status.
  */

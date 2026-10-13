@@ -85,8 +85,12 @@ export function OrderQueuePage({ placeholder = false }: OrderQueuePageProps) {
 					}
 					pageSizes={[10, 20, 50, 100]}
 					loading={placeholder || isLoading}
+					// The placeholder is a picture of the queue loading, never of its last failure: while
+					// OMS waits for a token, the cached query holds the 401 that started the wait.
 					error={
-						isError ? { title: "Couldn’t load orders", description: toErrorMessage(error) } : null
+						!placeholder && isError
+							? { title: "Couldn’t load orders", description: toErrorMessage(error) }
+							: null
 					}
 					onRetry={() => void refetch()}
 					empty={{
@@ -102,6 +106,8 @@ export function OrderQueuePage({ placeholder = false }: OrderQueuePageProps) {
 								: "Orders for this merchant will appear here.",
 					}}
 					onRowClick={(row) => router.push(orderRoutes.detail(row.referenceId))}
+					// Prefetched before the click, so the order's loading state shows the instant it lands.
+					onRowIntent={(row) => router.prefetch(orderRoutes.detail(row.referenceId))}
 				/>
 			</PageBody>
 		</Page>

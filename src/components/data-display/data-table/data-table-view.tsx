@@ -48,6 +48,11 @@ export interface DataTableViewProps<TData> {
 	empty?: Pick<EmptyStateProps, "icon" | "title" | "description" | "action">;
 	/** Makes rows clickable (and keyboard-activatable with Enter). */
 	onRowClick?: (row: TData) => void;
+	/**
+	 * A row is about to be clicked: the pointer entered it or it got focus. For warming up what the
+	 * click opens, e.g. prefetching the page, so it shows at once.
+	 */
+	onRowIntent?: (row: TData) => void;
 	/** Number of skeleton rows while loading. */
 	skeletonRows?: number;
 	/** Row density. Default `md`. */
@@ -81,6 +86,7 @@ export function DataTableView<TData>({
 	onRetry,
 	empty = { title: "No results", description: "Try a different search or filter." },
 	onRowClick,
+	onRowIntent,
 	skeletonRows = 5,
 	rowSize = "md",
 	className,
@@ -128,6 +134,8 @@ export function DataTableView<TData>({
 				tabIndex={onRowClick ? 0 : undefined}
 				onClick={onRowClick ? (e) => activate(row, e) : undefined}
 				onKeyDown={onRowClick ? (e) => e.key === "Enter" && activate(row, e) : undefined}
+				onPointerEnter={onRowIntent ? () => onRowIntent(row.original) : undefined}
+				onFocus={onRowIntent ? () => onRowIntent(row.original) : undefined}
 			>
 				{row.getVisibleCells().map((cell) => (
 					<TableCell key={cell.id} className={cn(sizeClass, cell.column.columnDef.meta?.className)}>

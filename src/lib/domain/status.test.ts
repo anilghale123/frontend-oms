@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+	ASSIGN_RIDER_ENABLED,
 	ORDER_STATUSES,
 	ORDER_STATUS_LABELS,
 	ORDER_STATUS_SEQUENCE,
@@ -11,14 +12,32 @@ import {
 	primaryAction,
 } from "./status";
 
+const withRider = { assignRider: true };
+
 describe("primaryAction", () => {
 	it("matches the guide's table of primary actions per status", () => {
 		// src/api.md, "Status flow and actions per status".
+		expect(primaryAction("preparing", withRider)).toMatchObject({
+			kind: "status",
+			to: "ready_for_delivery",
+		});
+		expect(primaryAction("ready_for_delivery", withRider)).toMatchObject({
+			kind: "assign_rider",
+		});
+		expect(primaryAction("delivering", withRider)).toMatchObject({
+			kind: "status",
+			to: "delivered",
+		});
+		expect(primaryAction("delivered", withRider)).toBeNull();
+		expect(primaryAction("failed", withRider)).toBeNull();
+	});
+
+	it("leads a ready order with nothing while Assign rider is off", () => {
+		expect(ASSIGN_RIDER_ENABLED).toBe(false);
+		expect(primaryAction("ready_for_delivery")).toBeNull();
+		// Everything else is unchanged.
 		expect(primaryAction("preparing")).toMatchObject({ kind: "status", to: "ready_for_delivery" });
-		expect(primaryAction("ready_for_delivery")).toMatchObject({ kind: "assign_rider" });
 		expect(primaryAction("delivering")).toMatchObject({ kind: "status", to: "delivered" });
-		expect(primaryAction("delivered")).toBeNull();
-		expect(primaryAction("failed")).toBeNull();
 	});
 
 	it("labels every action, so no screen invents copy", () => {
@@ -30,10 +49,10 @@ describe("primaryAction", () => {
 
 	it("walks the whole happy path, with Assign rider standing in for delivering", () => {
 		for (let i = 0; i < ORDER_STATUS_SEQUENCE.length - 1; i += 1) {
-			const action = primaryAction(ORDER_STATUS_SEQUENCE[i]);
+			const action = primaryAction(ORDER_STATUS_SEQUENCE[i], withRider);
 			const next = ORDER_STATUS_SEQUENCE[i + 1];
 			if (action?.kind === "status") expect(action.to).toBe(next);
-			else expect(goesThroughAssignRider(next)).toBe(true);
+			else expect(goesThroughAssignRider(next, withRider)).toBe(true);
 		}
 	});
 });
@@ -49,8 +68,12 @@ describe("otherStatuses", () => {
 	});
 
 	it("routes delivering through Assign rider, so the rider is recorded", () => {
-		expect(goesThroughAssignRider("delivering")).toBe(true);
-		expect(goesThroughAssignRider("delivered")).toBe(false);
+		expect(goesThroughAssignRider("delivering", withRider)).toBe(true);
+		expect(goesThroughAssignRider("delivered", withRider)).toBe(false);
+	});
+
+	it("makes delivering a plain change while Assign rider is off", () => {
+		expect(goesThroughAssignRider("delivering")).toBe(false);
 	});
 });
 
