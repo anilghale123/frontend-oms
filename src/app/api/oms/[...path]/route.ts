@@ -28,6 +28,7 @@ import {
 	UPSTREAM_TIMEOUT_MS,
 	salesUnreachableMessage,
 } from "@/config/server-env";
+import { NO_SESSION_CODE } from "@/lib/api/contracts";
 import { trace, traceWarn } from "@/lib/debug";
 import { clearSessionCookie, readSessionCookie } from "../../session/_cookie";
 
@@ -76,12 +77,15 @@ async function forward(request: Request, ctx: Context) {
 		// request.
 		request.headers.get("x-oms-token");
 
+	// No session at all. OMS has no separate session check: this answer, on its first data request,
+	// is how it learns it must ask the portal for a token. The code tells it apart from Sales
+	// refusing a token, which is a different reason to ask.
 	if (!token) {
 		trace(
 			"proxy",
-			`step 24 · ${request.method} /${path.join("/")}: no session (no cookie, no fallback header) → 401`,
+			`step 7 · ${request.method} /${path.join("/")}: no session (no cookie, no fallback header) → 401 ${NO_SESSION_CODE}`,
 		);
-		return error("unauthorized", "No OMS session", 401);
+		return error(NO_SESSION_CODE, "No OMS session", 401);
 	}
 	const label = `${request.method} /${path.join("/")}`;
 	const startedAt = Date.now();

@@ -123,6 +123,14 @@ export interface AssignRiderRequest {
 	remarks?: string;
 }
 
+/**
+ * `ApiError.code` the `/api/oms/*` proxy answers with when the browser sent no session at all (no
+ * `oms_at` cookie, no fallback header). Sales was never asked, so it says nothing about the token:
+ * OMS asks the portal for one with `reason: "missing"`. Any other `401` is Sales refusing a token
+ * (`reason: "rejected"`).
+ */
+export const NO_SESSION_CODE = "no_session";
+
 // ─── Rider portal ──────────────────────────────────────────────────────────────
 
 /**

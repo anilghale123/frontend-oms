@@ -23,9 +23,10 @@ export interface SessionGateProps {
  *
  * Three states, and the distinction between the last two is the useful part:
  *
- * - **loading** — `fallback`, the screen's skeleton. Normally one round trip to `/api/session`,
- *   which the cookie answers. It also covers the handshake when there is no session, or Sales
- *   refused the token: OMS has asked the portal for a token and is waiting for it.
+ * - **loading** — `fallback`, the screen's skeleton. On first render, until OMS knows it is
+ *   framed, and during a handshake: the screens' first request found no session, or Sales refused
+ *   the token, and OMS has asked the portal for a token and is waiting for it. (There is no session
+ *   check before the screens open, so a merchant with a cookie never waits here.)
  * - **unauthenticated with a reason** — something went wrong and it is worth explaining: a token
  *   refused straight after it was handed over, an ended portal session, an unreachable backend.
  *   Offers a retry, because most of these are transient.

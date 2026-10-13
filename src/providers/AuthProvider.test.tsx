@@ -2,18 +2,23 @@
  * The handoff, end to end on the frontend side.
  *
  * Everything server-side is covered over HTTP; what cannot be checked that way is the sequence
- * inside the browser, where the order of three things decides whether a merchant sees their orders
- * or a spinner: the cookie check, `oms.ready`, and the grant arriving. These tests drive that
- * sequence against a real `window.postMessage` in jsdom, with `fetch` stubbed at the route
- * boundary.
+ * inside the browser, where the order of things decides whether a merchant sees their orders or a
+ * loop: the screens' first request, `oms.ready`, the grant arriving, and late answers to requests
+ * sent before it. These tests drive that sequence against a real `window.postMessage` in jsdom and
+ * the real fetch client (`apiClient`), with `fetch` stubbed at the route boundary.
+ *
+ * There is no session check before the screens open: their first request through the proxy is
+ * the check, so the tests make requests with `apiClient` the way a screen would.
  *
  * The one thing left unproven here is the browser delivering a message between two real documents,
  * which is the same mechanism the theme sync has been using on this channel all along.
  */
 
+import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
-import { forgetToken, notifySessionExpired, readRememberedToken } from "@/lib/auth";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { ApiError, apiClient } from "@/lib/api/client";
+import { forgetToken, readRememberedToken } from "@/lib/auth";
 import { HOST_SOURCE, PROTOCOL_VERSION } from "@/lib/host";
 import { AuthProvider, useAuth } from "./AuthProvider";
 import { HostChannelProvider } from "./HostChannelProvider";
@@ -31,15 +36,19 @@ function Probe() {
 	);
 }
 
-function renderAuth() {
-	return render(
+function tree() {
+	return (
 		<HostChannelProvider>
 			<AuthProvider>
 				<Probe />
 			</AuthProvider>
-		</HostChannelProvider>,
+		</HostChannelProvider>
 	);
 }
+
+const renderAuth = () => render(tree());
+
+const status = () => screen.getByTestId("status");
 
 /** Stands in for the portal holding the frame: makes `embedded` true and records what OMS sends. */
 function frameWindow() {
@@ -55,35 +64,20 @@ function frameWindow() {
 	return { parent, posted };
 }
 
-function deliverGrant(source: unknown, over: Record<string, unknown> = {}) {
+function deliver(source: unknown, data: Record<string, unknown>) {
 	const event = new MessageEvent("message", {
-		data: {
-			source: HOST_SOURCE,
-			v: PROTOCOL_VERSION,
-			type: "host.auth.grant",
-			token: "oms_at_from_host",
-			expiresAt: "",
-			...over,
-		},
+		data: { source: HOST_SOURCE, v: PROTOCOL_VERSION, ...data },
 		origin: HOST_ORIGIN,
 	});
 	Object.defineProperty(event, "source", { value: source });
 	window.dispatchEvent(event);
 }
 
-function deliverDenied(source: unknown, reason: string) {
-	const event = new MessageEvent("message", {
-		data: {
-			source: HOST_SOURCE,
-			v: PROTOCOL_VERSION,
-			type: "host.auth.denied",
-			reason,
-		},
-		origin: HOST_ORIGIN,
-	});
-	Object.defineProperty(event, "source", { value: source });
-	window.dispatchEvent(event);
-}
+const deliverGrant = (source: unknown, token = "oms_at_from_host") =>
+	deliver(source, { type: "host.auth.grant", token, expiresAt: "" });
+
+const deliverDenied = (source: unknown, reason: string) =>
+	deliver(source, { type: "host.auth.denied", reason });
 
 /** The messages of one type OMS has posted to the portal. */
 function sent(posted: unknown[], type: string) {
@@ -93,14 +87,27 @@ function sent(posted: unknown[], type: string) {
 	>[];
 }
 
-/** Waits for OMS to ask the portal for a token, which is when the portal may grant one. */
-async function waitForRenew(posted: unknown[]) {
-	await waitFor(() => expect(sent(posted, "oms.auth.renew")).toHaveLength(1));
+function json(body: unknown, status = 200): Response {
+	return new Response(JSON.stringify(body), {
+		status,
+		headers: { "content-type": "application/json" },
+	});
 }
 
-/** Minimal router over the two routes the provider calls. */
+/** The proxy's answer when the browser sent no session. */
+const noSession = () => json({ error: { code: "no_session", message: "No OMS session" } }, 401);
+
+/** Sales refusing a token, passed back by the proxy. */
+const refused = () => json({ detail: "Given token not valid for any token type" }, 401);
+
+const orders = () => json({ count: 0, next: null, previous: null, data: [] });
+
+/**
+ * Stubs `fetch` at the route boundary. `oms` answers every `/api/oms/*` request in turn; return a
+ * promise from it to hold one back.
+ */
 function stubFetch(routes: {
-	session?: () => Response;
+	oms?: () => Response | Promise<Response>;
 	sessionPost?: (body: unknown) => Response;
 }) {
 	const calls: { url: string; method: string; body?: unknown }[] = [];
@@ -111,9 +118,7 @@ function stubFetch(routes: {
 		const body = init?.body ? JSON.parse(String(init.body)) : undefined;
 		calls.push({ url, method, body });
 
-		if (url === "/api/session" && method === "GET") {
-			return routes.session?.() ?? json({ error: { code: "no_session" } }, 401);
-		}
+		if (url.startsWith("/api/oms/")) return (routes.oms ?? orders)();
 		if (url === "/api/session" && method === "POST") {
 			return routes.sessionPost?.(body) ?? json({ ok: true });
 		}
@@ -124,11 +129,20 @@ function stubFetch(routes: {
 	return calls;
 }
 
-function json(body: unknown, status = 200): Response {
-	return new Response(JSON.stringify(body), {
-		status,
-		headers: { "content-type": "application/json" },
-	});
+/** What a screen does on mount: ask for the orders. Resolves to the error, if any. */
+function loadOrders(): Promise<ApiError | null> {
+	return apiClient.get("/orders").then(
+		() => null,
+		(error: ApiError) => error,
+	);
+}
+
+/** Opens OMS in the portal with no cookie, and waits for it to ask for a token. */
+async function openWithoutCookie(posted: unknown[]) {
+	renderAuth();
+	await waitFor(() => expect(status()).toHaveTextContent("authenticated"));
+	await loadOrders();
+	await waitFor(() => expect(sent(posted, "oms.auth.renew")).toHaveLength(1));
 }
 
 beforeEach(() => {
@@ -146,236 +160,321 @@ afterEach(() => {
 	forgetToken();
 });
 
-describe("AuthProvider — embedded", () => {
-	it("uses the cookie and tells the portal no token is needed", async () => {
-		// The common path: the merchant opens OMS again and the cookie is there. The route only
-		// checks the cookie exists, so it answers with no profile.
+describe("AuthProvider — opening OMS", () => {
+	it("server-renders the loading state, so the first paint is the skeleton", () => {
+		// The server cannot know whether OMS is framed. It must not render "opens from the
+		// portal" (which the hydrating browser would then replace), only the loading state.
+		frameWindow();
+
+		const html = renderToString(tree());
+
+		expect(html).toContain(">loading<");
+	});
+
+	it("opens the screens with no session check, and tells the portal no token was needed", async () => {
+		// The common path: the merchant opens OMS again and the cookie is there.
 		const { posted } = frameWindow();
-		const calls = stubFetch({ session: () => json({ ok: true }) });
+		const calls = stubFetch({});
 
 		renderAuth();
 
-		await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("authenticated"));
-		// No POST: nothing was exchanged, because nothing had to be.
-		expect(calls.filter((call) => call.method === "POST")).toHaveLength(0);
-		// The portal hears that the session already exists, and is never asked for a token.
+		// Straight to the screens: nothing was fetched just to check the session.
+		await waitFor(() => expect(status()).toHaveTextContent("authenticated"));
+		expect(calls).toHaveLength(0);
+
+		// The screens' first requests succeed; the portal hears once that no token was needed.
+		await loadOrders();
+		await loadOrders();
+
 		await waitFor(() =>
 			expect(sent(posted, "oms.auth.ok")).toEqual([
 				expect.objectContaining({ type: "oms.auth.ok", session: "existing" }),
 			]),
 		);
-		expect(sent(posted, "oms.auth.ok")[0]).not.toHaveProperty("merchantId");
 		expect(sent(posted, "oms.auth.renew")).toHaveLength(0);
+		expect(calls.some((call) => call.url === "/api/session")).toBe(false);
 	});
 
-	it("exchanges a host grant for a session and reports back", async () => {
+	it("asks the portal for a token when the first request finds no session", async () => {
 		const { parent, posted } = frameWindow();
-		const calls = stubFetch({});
+		let hasCookie = false;
+		const calls = stubFetch({
+			oms: () => (hasCookie ? orders() : noSession()),
+			sessionPost: () => {
+				hasCookie = true;
+				return json({ ok: true });
+			},
+		});
 
 		renderAuth();
+		await waitFor(() => expect(status()).toHaveTextContent("authenticated"));
 
-		// `oms.ready` goes out on mount; with no cookie OMS then asks for a token.
-		await waitFor(() => expect(posted).not.toHaveLength(0));
-		expect(posted[0]).toMatchObject({ type: "oms.ready" });
-		await waitForRenew(posted);
+		const error = await loadOrders();
+		expect(error?.status).toBe(401);
+
+		// `missing`, not `rejected`: there was no token to refuse.
+		await waitFor(() => expect(sent(posted, "oms.auth.renew")).toHaveLength(1));
 		expect(sent(posted, "oms.auth.renew")[0]).toMatchObject({ reason: "missing" });
+		// The screens come down (the gate shows the skeleton) while the portal answers.
+		expect(status()).toHaveTextContent("loading");
 
 		deliverGrant(parent);
 
-		await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("authenticated"));
-
+		await waitFor(() => expect(status()).toHaveTextContent("authenticated"));
 		const post = calls.find((call) => call.url === "/api/session" && call.method === "POST");
 		expect(post?.body).toEqual({ token: "oms_at_from_host" });
-
 		// The token is also held in memory, for a browser that refuses the partitioned cookie.
 		expect(readRememberedToken()).toBe("oms_at_from_host");
-
-		// The portal is told the token was stored.
 		await waitFor(() =>
-			expect(posted).toContainEqual(
+			expect(sent(posted, "oms.auth.ok")).toEqual([
 				expect.objectContaining({ type: "oms.auth.ok", session: "new" }),
-			),
+			]),
 		);
+
+		// The screens' requests now work, and the portal is not told "existing" on top of "new".
+		expect(await loadOrders()).toBeNull();
+		expect(sent(posted, "oms.auth.ok")).toHaveLength(1);
 	});
 
-	it("ignores a grant it did not ask for", async () => {
-		// Older portals granted on every `oms.ready`. With a valid cookie that token must not
-		// replace the session.
-		const { parent, posted } = frameWindow();
-		const calls = stubFetch({ session: () => json({ ok: true }) });
+	it("asks once when several requests find no session together", async () => {
+		// An order detail page fires the order and the side list at once.
+		const { posted } = frameWindow();
+		stubFetch({ oms: noSession });
 
 		renderAuth();
-		await waitFor(() => expect(sent(posted, "oms.auth.ok")).toHaveLength(1));
+		await waitFor(() => expect(status()).toHaveTextContent("authenticated"));
+
+		await Promise.all([loadOrders(), loadOrders(), loadOrders()]);
+
+		await waitFor(() => expect(sent(posted, "oms.auth.renew")).toHaveLength(1));
+		expect(status()).toHaveTextContent("loading");
+	});
+
+	it("ignores a 401 from a request sent before the new token was stored", async () => {
+		const { parent, posted } = frameWindow();
+
+		// One request is held back by a slow network; the rest answer at once.
+		let releaseSlow!: (response: Response) => void;
+		let first = true;
+		stubFetch({
+			oms: () => {
+				if (first) {
+					first = false;
+					return new Promise<Response>((resolve) => (releaseSlow = resolve));
+				}
+				return noSession();
+			},
+		});
+
+		renderAuth();
+		await waitFor(() => expect(status()).toHaveTextContent("authenticated"));
+
+		const slow = loadOrders();
+		await loadOrders();
+		await waitFor(() => expect(sent(posted, "oms.auth.renew")).toHaveLength(1));
 
 		deliverGrant(parent);
+		await waitFor(() => expect(status()).toHaveTextContent("authenticated"));
 
-		expect(screen.getByTestId("status")).toHaveTextContent("authenticated");
-		expect(calls.filter((call) => call.method === "POST")).toHaveLength(0);
+		// The slow request was sent before the new token existed. Its 401 speaks for a session
+		// that is already replaced: it must not end the new one or ask the portal again.
+		releaseSlow(noSession());
+		expect((await slow)?.status).toBe(401);
+
+		expect(status()).toHaveTextContent("authenticated");
+		expect(sent(posted, "oms.auth.renew")).toHaveLength(1);
+		// Nor does it drop the in-memory copy of the new token.
+		expect(readRememberedToken()).toBe("oms_at_from_host");
 	});
 
-	it("ignores a denial while its session is fine", async () => {
+	it("asks for a new token when Sales refuses the cookie's token", async () => {
 		const { parent, posted } = frameWindow();
-		stubFetch({ session: () => json({ ok: true }) });
+		let refusedOnce = false;
+		stubFetch({
+			oms: () => {
+				if (refusedOnce) return orders();
+				refusedOnce = true;
+				return refused();
+			},
+		});
 
 		renderAuth();
-		await waitFor(() => expect(sent(posted, "oms.auth.ok")).toHaveLength(1));
+		await waitFor(() => expect(status()).toHaveTextContent("authenticated"));
 
-		deliverDenied(parent, "token_request_failed");
+		await loadOrders();
 
-		expect(screen.getByTestId("status")).toHaveTextContent("authenticated");
-	});
-
-	it("asks for a new token when Sales refuses the token mid-visit", async () => {
-		const { parent, posted } = frameWindow();
-		const calls = stubFetch({ session: () => json({ ok: true }) });
-
-		renderAuth();
-		await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("authenticated"));
-
-		// Well after sign-in, as far as the cool-down is concerned.
-		const realNow = Date.now.bind(Date);
-		vi.spyOn(Date, "now").mockImplementation(() => realNow() + 12 * 60 * 60 * 1000);
-
-		// Several queries fail together; OMS still asks once.
-		notifySessionExpired();
-		notifySessionExpired();
-
-		await waitForRenew(posted);
-		// `rejected` tells the portal this is a second ask: the token it gave no longer works.
+		// `rejected` tells the portal the token OMS had no longer works.
+		await waitFor(() => expect(sent(posted, "oms.auth.renew")).toHaveLength(1));
 		expect(sent(posted, "oms.auth.renew")[0]).toMatchObject({ reason: "rejected" });
-		expect(screen.getByTestId("status")).toHaveTextContent("loading");
 
-		deliverGrant(parent, { token: "oms_at_fresh" });
-
-		await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("authenticated"));
-		const post = calls.find((call) => call.url === "/api/session" && call.method === "POST");
-		expect(post?.body).toEqual({ token: "oms_at_fresh" });
-	});
-
-	it("asks again when a token from the cookie is refused, even right after opening", async () => {
-		// /api/session no longer checks the token with Sales, so a revoked token in the cookie
-		// shows up on the first data request. That is not a bad new token: ask for a new one.
-		const { posted } = frameWindow();
-		stubFetch({ session: () => json({ ok: true }) });
-
-		renderAuth();
-		await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("authenticated"));
-
-		notifySessionExpired();
-
-		await waitForRenew(posted);
-		expect(sent(posted, "oms.auth.renew")[0]).toMatchObject({ reason: "rejected" });
+		deliverGrant(parent, "oms_at_fresh");
+		await waitFor(() => expect(status()).toHaveTextContent("authenticated"));
+		expect(await loadOrders()).toBeNull();
 	});
 
 	it("does not loop when a token just handed over is refused", async () => {
 		const { parent, posted } = frameWindow();
-		stubFetch({});
+		let granted = false;
+		stubFetch({
+			oms: () => (granted ? refused() : noSession()),
+			sessionPost: () => {
+				granted = true;
+				return json({ ok: true });
+			},
+		});
 
-		renderAuth();
-		await waitForRenew(posted);
+		await openWithoutCookie(posted);
 		deliverGrant(parent);
-		await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("authenticated"));
+		await waitFor(() => expect(status()).toHaveTextContent("authenticated"));
 
-		// The first data request says the token it was just given is no good.
-		notifySessionExpired();
+		// The first request with the new token says it is no good.
+		await loadOrders();
 
-		await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("unauthenticated"));
+		await waitFor(() => expect(status()).toHaveTextContent("unauthenticated"));
 		expect(screen.getByTestId("reason")).toHaveTextContent("Your access has ended");
 		expect(sent(posted, "oms.auth.renew")).toHaveLength(1);
 	});
 
-	it("tells the portal when the token is refused", async () => {
+	it("does not loop when there is still no session right after a grant", async () => {
+		// The cookie did not stick and there is no fallback copy: asking again would loop.
 		const { parent, posted } = frameWindow();
-		stubFetch({ sessionPost: () => json({ error: { code: "unauthorized" } }, 401) });
+		stubFetch({ oms: noSession });
 
-		renderAuth();
-		await waitForRenew(posted);
+		await openWithoutCookie(posted);
 		deliverGrant(parent);
+		await waitFor(() => expect(status()).toHaveTextContent("authenticated"));
+		forgetToken();
 
-		await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("unauthenticated"));
-		expect(screen.getByTestId("reason")).toHaveTextContent("Couldn't start the OMS session");
-		await waitFor(() =>
-			expect(posted.some((m) => (m as { type: string }).type === "oms.auth.failed")).toBe(true),
-		);
+		await loadOrders();
+
+		await waitFor(() => expect(status()).toHaveTextContent("unauthenticated"));
+		expect(sent(posted, "oms.auth.renew")).toHaveLength(1);
 	});
 
-	it("exchanges only once when the host grants twice", async () => {
-		// One renew, one exchange: a repeated grant (an older portal, a double answer) must not
-		// re-POST the session.
+	it("opens the screens again on retry", async () => {
 		const { parent, posted } = frameWindow();
+		stubFetch({ oms: noSession });
+
+		// The gate's retry button.
+		function RetryButton() {
+			return <button onClick={useAuth().retry}>Try again</button>;
+		}
+		render(
+			<HostChannelProvider>
+				<AuthProvider>
+					<Probe />
+					<RetryButton />
+				</AuthProvider>
+			</HostChannelProvider>,
+		);
+		await waitFor(() => expect(status()).toHaveTextContent("authenticated"));
+		await loadOrders();
+		await waitFor(() => expect(sent(posted, "oms.auth.renew")).toHaveLength(1));
+		deliverDenied(parent, "token_request_failed");
+		await waitFor(() => expect(status()).toHaveTextContent("unauthenticated"));
+
+		fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+
+		// Back to the screens, whose first request will start a new handshake.
+		await waitFor(() => expect(status()).toHaveTextContent("authenticated"));
+		await loadOrders();
+		await waitFor(() => expect(sent(posted, "oms.auth.renew")).toHaveLength(2));
+	});
+});
+
+describe("AuthProvider — grants and denials", () => {
+	it("ignores a grant it did not ask for", async () => {
+		// With a working cookie, a token that arrives unasked must not replace the session.
+		const { parent } = frameWindow();
 		const calls = stubFetch({});
 
 		renderAuth();
-		await waitForRenew(posted);
+		await waitFor(() => expect(status()).toHaveTextContent("authenticated"));
+
+		deliverGrant(parent);
+
+		expect(status()).toHaveTextContent("authenticated");
+		expect(calls.filter((call) => call.method === "POST")).toHaveLength(0);
+	});
+
+	it("ignores a denial while its session is fine", async () => {
+		const { parent } = frameWindow();
+		stubFetch({});
+
+		renderAuth();
+		await waitFor(() => expect(status()).toHaveTextContent("authenticated"));
+
+		deliverDenied(parent, "token_request_failed");
+
+		expect(status()).toHaveTextContent("authenticated");
+	});
+
+	it("tells the portal when the token cannot be stored", async () => {
+		const { parent, posted } = frameWindow();
+		stubFetch({
+			oms: noSession,
+			sessionPost: () => json({ error: { code: "unauthorized" } }, 401),
+		});
+
+		await openWithoutCookie(posted);
+		deliverGrant(parent);
+
+		await waitFor(() => expect(status()).toHaveTextContent("unauthenticated"));
+		expect(screen.getByTestId("reason")).toHaveTextContent("Couldn't start the OMS session");
+		await waitFor(() => expect(sent(posted, "oms.auth.failed")).toHaveLength(1));
+	});
+
+	it("exchanges only once when the host grants twice", async () => {
+		const { parent, posted } = frameWindow();
+		const calls = stubFetch({ oms: noSession });
+
+		await openWithoutCookie(posted);
 
 		deliverGrant(parent);
 		deliverGrant(parent);
 		deliverGrant(parent);
 
-		await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("authenticated"));
+		await waitFor(() => expect(status()).toHaveTextContent("authenticated"));
 		expect(
 			calls.filter((call) => call.url === "/api/session" && call.method === "POST"),
 		).toHaveLength(1);
 	});
 
-	it("asks for a grant when it is framed with no session", async () => {
-		const { posted } = frameWindow();
-		stubFetch({});
-
-		renderAuth();
-
-		// `oms.auth.renew` is the only thing that makes the portal fetch a token.
-		await waitForRenew(posted);
-		expect(sent(posted, "oms.auth.renew")[0]).toMatchObject({ reason: "missing" });
-		expect(sent(posted, "oms.auth.ok")).toHaveLength(0);
-	});
-
-	it("explains itself when /embed is opened outside a frame", async () => {
-		// No `frameWindow()`: `window.parent === window`, so there is no host to ask.
-		stubFetch({});
-
-		renderAuth();
-
-		await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("unauthenticated"));
-		expect(screen.getByTestId("reason")).toHaveTextContent("Open OMS from the Fonepoints");
-	});
-
 	it("surfaces a denial from the portal", async () => {
 		const { parent, posted } = frameWindow();
-		stubFetch({});
+		stubFetch({ oms: noSession });
 
-		renderAuth();
-		await waitForRenew(posted);
+		await openWithoutCookie(posted);
 
 		deliverDenied(parent, "no_session");
 
-		await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("unauthenticated"));
+		await waitFor(() => expect(status()).toHaveTextContent("unauthenticated"));
 		expect(screen.getByTestId("reason")).toHaveTextContent("Fonepoints session has ended");
 	});
 });
 
 describe("AuthProvider — only the portal signs OMS in", () => {
-	it("ignores a #token= on the URL and asks the portal instead", async () => {
-		// The URL handoff is gone: a token reaches OMS only through the portal's grant.
-		window.history.replaceState(null, "", "/embed/orders#token=jwt_from_url&theme=dark");
-		const { posted } = frameWindow();
+	it("explains itself when /embed is opened outside a frame", async () => {
+		// No `frameWindow()`: `window.parent === window`, so there is no host to ask.
 		const calls = stubFetch({});
 
 		renderAuth();
 
-		await waitForRenew(posted);
-		expect(calls.filter((call) => call.method === "POST")).toHaveLength(0);
-		expect(readRememberedToken()).toBeNull();
+		await waitFor(() => expect(status()).toHaveTextContent("unauthenticated"));
+		expect(screen.getByTestId("reason")).toHaveTextContent("Open OMS from the Fonepoints");
+		// Not even a request: the screens never open outside the portal.
+		expect(calls).toHaveLength(0);
 	});
 
-	it("does not open outside the portal, even with a cookie", async () => {
-		// Embedded only: a cookie from an earlier visit is not a way in on its own.
-		const calls = stubFetch({ session: () => json({ ok: true }) });
+	it("ignores a #token= on the URL and asks the portal instead", async () => {
+		// The URL handoff is gone: a token reaches OMS only through the portal's grant.
+		window.history.replaceState(null, "", "/embed/orders#token=jwt_from_url&theme=dark");
+		const { posted } = frameWindow();
+		const calls = stubFetch({ oms: noSession });
 
-		renderAuth();
+		await openWithoutCookie(posted);
 
-		await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("unauthenticated"));
-		expect(screen.getByTestId("reason")).toHaveTextContent("Open OMS from the Fonepoints");
-		expect(calls).toHaveLength(0);
+		expect(calls.filter((call) => call.method === "POST")).toHaveLength(0);
+		expect(readRememberedToken()).toBeNull();
 	});
 });

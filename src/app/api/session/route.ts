@@ -6,13 +6,14 @@
  * cookie, and from then on the token is only ever read by this app's server.
  *
  *   POST   { token }  → stores it in the session cookie
- *   GET              → 200 when the cookie is there, 401 `no_session` when it is not
  *   DELETE           → clears the cookie (portal sign-out goes through `/embed-signout`)
  *
- * Neither `POST` nor `GET` calls the Sales service. The token comes from the portal, which got it
- * from Providhy IAM, and it does not expire, so the cookie is the reference: present means signed
- * in. A token Sales does not accept shows up on the first call through `/api/oms/*`, whose `401`
- * deletes the cookie and makes OMS ask the portal again — the same path as a token revoked later.
+ * There is no `GET`: OMS does not check its session before opening the screens. Their first call
+ * through `/api/oms/*` is the check — `401 no_session` when there is no cookie, which makes OMS ask
+ * the portal for a token. `POST` does not call the Sales service either. The token comes from the
+ * portal, which got it from Providhy IAM, and it does not expire. A token Sales does not accept
+ * shows up on the first call through the proxy, whose `401` deletes the cookie and makes OMS ask the
+ * portal again — the same path as a token revoked later.
  *
  * What protects these routes is who may call them: same origin only (below), and on the embedded
  * surface the token reaches the page only through the checked `postMessage` channel, and only when
@@ -21,7 +22,7 @@
 
 import { z } from "zod";
 import { trace, traceWarn } from "@/lib/debug";
-import { clearSessionCookie, readSessionCookie, setSessionCookie } from "./_cookie";
+import { clearSessionCookie, setSessionCookie } from "./_cookie";
 
 const bodySchema = z.object({ token: z.string().trim().min(1) });
 
@@ -61,18 +62,6 @@ export async function POST(request: Request) {
 			calledSales: false,
 		},
 	);
-	return Response.json({ ok: true }, { headers: NO_STORE });
-}
-
-export async function GET() {
-	if (!(await readSessionCookie())) {
-		trace("session", "step 7 · GET /api/session: no oms_at cookie → 401 no_session");
-		return Response.json(
-			{ error: { code: "no_session", message: "No session" } },
-			{ status: 401, headers: NO_STORE },
-		);
-	}
-	trace("session", "step 7 · GET /api/session: oms_at cookie present → 200 (Sales not called)");
 	return Response.json({ ok: true }, { headers: NO_STORE });
 }
 

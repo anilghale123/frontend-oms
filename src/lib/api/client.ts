@@ -6,8 +6,10 @@
  * - `apiClient` — the merchant's order screens, through this app's `/api/oms` proxy
  *   (`OMS_API_BASE`), not the Sales service directly: the proxy reads the access token from an
  *   httpOnly cookie on the server and forwards to `{SALES_URL}api/oms/portal/`, so no screen and no
- *   module in this folder ever holds a credential. A `401` announces that the token stopped
- *   working (`@/lib/auth`); there is no refresh, and the fix is a new token from the portal.
+ *   module in this folder ever holds a credential. These requests are also how OMS learns whether
+ *   it has a session at all (there is no separate check): a `401` announces that there is none, or
+ *   that the token stopped working, and a success that it works (`@/lib/auth`). There is no
+ *   refresh; the fix for a `401` is a token from the portal.
  * - `riderApiClient` — the rider portal, through `/api/rider` (`RIDER_API_BASE`). A rider has no
  *   session, so this one sends no token and a `401` means nothing to the merchant's session.
  *
@@ -22,9 +24,12 @@ import { trace } from "@/lib/debug";
 import {
 	SESSION_EXPIRED_MESSAGE,
 	forgetToken,
-	notifySessionExpired,
+	notifySessionConfirmed,
+	notifySessionLost,
 	readRememberedToken,
+	sessionEpoch,
 } from "@/lib/auth";
+import { NO_SESSION_CODE } from "./contracts";
 import {
 	ApiError,
 	codeFromBody,
@@ -49,6 +54,9 @@ async function request<T>(
 	init?: RequestInit,
 ): Promise<T> {
 	const fallbackToken = session ? readRememberedToken() : null;
+	// Which session this request speaks for. A 401 from before the newest token was stored is
+	// stale and must not end the session that replaced it.
+	const epoch = session ? sessionEpoch() : 0;
 	const method = init?.method ?? "GET";
 	const startedAt = performance.now();
 	const done = (status: number | string) =>
@@ -80,18 +88,30 @@ async function request<T>(
 		});
 	}
 
-	// Missing, invalid or revoked token. There is no refresh endpoint, so retrying is pointless:
-	// drop the fallback copy and let the session gate ask the portal for a new one.
+	// No session, or a refused token. There is no refresh endpoint, so retrying is pointless: drop
+	// the fallback copy and let the session gate ask the portal for a token. A 401 from a request
+	// sent before the current token was stored is left alone: that session is already replaced,
+	// and the fallback copy now belongs to the new one.
 	done(res.status);
 	if (res.status === 401 && session) {
-		trace(
-			"api",
-			"step 26 · 401 from Sales: the token is refused; the proxy has already deleted the cookie",
-		);
-		forgetToken();
-		notifySessionExpired();
+		const missing = codeFromBody(await readBody(res)) === NO_SESSION_CODE;
+		if (epoch !== sessionEpoch()) {
+			trace("api", `a 401 from before the current session (${method} ${path}): ignored`);
+		} else {
+			trace(
+				"api",
+				missing
+					? "step 7 · 401 no_session: OMS has no session cookie; the portal will be asked"
+					: "step 26 · 401 from Sales: the token is refused; the proxy has already deleted the cookie",
+			);
+			forgetToken();
+			notifySessionLost({ reason: missing ? "missing" : "rejected", epoch });
+		}
 		throw new ApiError(SESSION_EXPIRED_MESSAGE, 401, "session_expired");
 	}
+
+	// Anything but a 401 means the proxy found a session; a success means Sales accepted it.
+	if (res.ok && session) notifySessionConfirmed(epoch);
 
 	if (!res.ok) {
 		const body = await readBody(res);

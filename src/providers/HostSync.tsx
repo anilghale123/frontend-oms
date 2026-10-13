@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
 	APPEARANCE_THEMES,
 	applyAppearance,
@@ -18,6 +19,11 @@ import { useHostChannel } from "./HostChannelProvider";
  * Mounted only on `/embed/*`. While embedded, the host owns the appearance: the portal pushes
  * `host.theme` when the merchant changes it there, and OMS follows (auth.md section 9).
  *
+ * The portal also keeps the OMS frame alive while the merchant visits its other pages, and says
+ * `host.visible` when they come back. Nothing was refetched while OMS was hidden, so the screen on
+ * show refreshes whatever has gone stale (older than the 30-second `staleTime`). Only stale
+ * queries: a merchant flicking between pages should not spend the Sales rate limit.
+ *
  * The theme is applied **transiently** — `applyAppearance`, never `saveAppearance`. Persisting
  * the host's choice would make it stick the next time the merchant opens OMS standalone, and
  * would fire `APPEARANCE_CHANGE_EVENT` for a change the user never made. The corollary is that
@@ -33,6 +39,16 @@ import { useHostChannel } from "./HostChannelProvider";
  */
 export function HostSync() {
 	const channel = useHostChannel();
+	const queryClient = useQueryClient();
+
+	useEffect(() => {
+		if (!channel?.embedded) return;
+
+		return channel.on("host.visible", () => {
+			trace("host", "the portal shows OMS again: refreshing what is stale on screen");
+			void queryClient.refetchQueries({ type: "active", stale: true });
+		});
+	}, [channel, queryClient]);
 
 	useEffect(() => {
 		if (!channel?.embedded) return;

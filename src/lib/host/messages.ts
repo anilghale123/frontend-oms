@@ -62,7 +62,13 @@ export type HostToOms =
 	/** The answer to `oms.auth.renew`. Used only while OMS is waiting for one. */
 	| { type: "host.auth.grant"; token: string; expiresAt: string }
 	/** The portal could not get a token: `no_session` or `token_request_failed`. */
-	| { type: "host.auth.denied"; reason: string };
+	| { type: "host.auth.denied"; reason: string }
+	/**
+	 * The merchant is back on OMS. The portal keeps the OMS frame alive while they visit its other
+	 * pages and only hides it, so nothing on screen was refetched meanwhile: OMS refreshes what is
+	 * stale. An older OMS ignores it, so the two apps still ship independently.
+	 */
+	| { type: "host.visible" };
 
 /** Every message carries the envelope, so unrelated postMessage traffic is easy to reject. */
 export type Envelope = { source: string; v: number };
