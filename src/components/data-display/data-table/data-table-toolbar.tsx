@@ -53,7 +53,8 @@ const ALL = "__all__";
 
 /**
  * Table toolbar (Meat-Management pattern): optional leading content on the left; search,
- * filter and a compact icon group (show columns, row size, full screen) on the right.
+ * filter and a compact icon group (show columns, row size, full screen) on the right. Stacked
+ * below `xl`.
  */
 export function DataTableToolbar<TData>({
 	table,
@@ -73,9 +74,11 @@ export function DataTableToolbar<TData>({
 	const hasIconGroup = columnToggle || (rowSize && onRowSizeChange) || onToggleFullscreen;
 
 	return (
-		<div className="flex flex-col gap-2 border-b border-border px-3 py-2.5 lg:flex-row lg:items-center lg:justify-between">
+		// Side by side only from `xl`: at `lg` the sidebar leaves too little room for a full row of
+		// status filters next to the search box, and the row would overflow.
+		<div className="flex flex-col gap-2 border-b border-border px-3 py-2.5 xl:flex-row xl:items-center xl:justify-between">
 			<div className="flex min-w-0 items-center gap-2">{leading}</div>
-			<div className="flex flex-wrap items-center gap-2 lg:justify-end">
+			<div className="flex flex-wrap items-center gap-2 xl:justify-end">
 				{searchPlaceholder && (
 					<InputWrapper size="32" className="w-full sm:w-80">
 						<Search aria-hidden />

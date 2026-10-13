@@ -14,16 +14,27 @@ export function formatDateTime(iso: string): string {
 }
 
 const wholeNumber = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
+const money = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2 });
 
-/** Formats a Rs amount the way the Fonepoints app does, e.g. "Rs 1,923". */
+/** Formats a Rs amount the way the Fonepoints app does, e.g. "Rs 1,923" or "Rs 99.5". */
 export function formatRs(amount: number): string {
-	return `Rs ${wholeNumber.format(amount)}`;
+	return `Rs ${money.format(amount)}`;
 }
 
-/** Formats a redeemed value like the Fonepoints app: "Rs 1,923 + 174 pts", or "174 pts". */
-export function formatOrderValue(order: { orderValue: number; cashAmount: number }): string {
-	const points = `${wholeNumber.format(order.orderValue)} pts`;
-	return order.cashAmount > 0 ? `${formatRs(order.cashAmount)} + ${points}` : points;
+/** Formats points, e.g. "1,000 pts". */
+export function formatPoints(points: number): string {
+	return `${wholeNumber.format(points)} pts`;
+}
+
+/**
+ * Formats a redeemed value like the Fonepoints app: "Rs 100 + 1,000 pts", or "1,000 pts".
+ * Either part may be missing (the API sends `null`); with neither, a dash.
+ */
+export function formatOrderValue(order: { points: number | null; amount: number | null }): string {
+	const parts: string[] = [];
+	if (order.amount !== null && order.amount > 0) parts.push(formatRs(order.amount));
+	if (order.points !== null) parts.push(formatPoints(order.points));
+	return parts.join(" + ") || "—";
 }
 
 /** Formats an ISO timestamp as a date only, e.g. "28 Sep 2026". */

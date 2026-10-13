@@ -3,15 +3,14 @@
 import type { ReactNode } from "react";
 import { FonepointsLogo } from "@/components/icons/fonepoints-logo";
 import { MobileShell } from "@/components/layout";
-import { surfaces } from "@/config/nav";
+import { riderSurface } from "@/config/nav";
 
 /**
  * Rider portal chrome: mobile-first, single column, no sidebar. The rider has no login (the
- * Order ID + voucher pair is the credential), so there is no role badge and nothing here reads
- * the mock session; the portal can sit in a tab beside the merchant dashboard.
+ * Order ID + voucher pair is the credential), so there is no session and nothing here reads one.
  */
 export function RiderShell({ children }: { children: ReactNode }) {
-	const { name, product } = surfaces.rider;
+	const { name, product } = riderSurface;
 	return (
 		<MobileShell
 			title={

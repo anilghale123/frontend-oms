@@ -8,6 +8,7 @@ export {
 	isHostMessageOfType,
 	isHostThemeMode,
 	type Envelope,
+	type GrantReason,
 	type HostMessage,
 	type HostThemeMode,
 	type HostToOms,

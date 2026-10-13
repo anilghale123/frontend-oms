@@ -132,7 +132,7 @@ describe("createHostChannel", () => {
 		posted.length = 0;
 
 		deliver(grant(), ALLOWED, parent);
-		channel.send({ type: "oms.auth.ok", merchantId: "merchant-a" });
+		channel.send({ type: "oms.auth.ok", merchantId: "merchant-a", session: "new" });
 
 		// One message to the origin that actually holds the frame, not one per candidate.
 		expect(posted).toHaveLength(1);

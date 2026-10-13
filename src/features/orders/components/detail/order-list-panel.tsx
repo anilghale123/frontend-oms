@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ChevronDown, List, Search } from "lucide-react";
 import { Button, IconButton } from "@/components/ui/button";
@@ -15,26 +15,23 @@ import { Input, InputWrapper } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 
-import { ORDER_STATUS_LABELS, ORDER_STATUS_SEQUENCE, type Order } from "@/lib/domain";
+import { ORDER_STATUS_LABELS, type Order } from "@/lib/domain";
 import { cn, formatOrderValue } from "@/lib/utils";
 import { useOrderRoutes } from "../../order-routes";
 import { useOrders } from "../../hooks/use-orders";
-import type { OrderStatusFilter } from "../queue/order-status-tabs";
+import { useOrderSearch } from "../../hooks/use-order-search";
+import { ORDER_STATUS_FILTERS, type OrderStatusFilter } from "../queue/order-status-tabs";
 import { StatusBadge } from "../status-badge";
 
-// Failed filter hidden for now: ["all", ...ORDER_STATUS_SEQUENCE, "failed"]
-// Delivering filter hidden for now: drop the `.filter` to show it again.
-const FILTERS: OrderStatusFilter[] = [
-	"all",
-	...ORDER_STATUS_SEQUENCE.filter((status) => status !== "delivering"),
-];
+/** The newest orders for the current filter; the full list is a click away. */
+const PANEL_PAGE_SIZE = 50;
 
 function filterLabel(filter: OrderStatusFilter) {
 	return filter === "all" ? "All orders" : ORDER_STATUS_LABELS[filter];
 }
 
 export interface OrderListPanelProps {
-	/** OMS Order ID open in the detail pane; its row is highlighted and scrolled into view. */
+	/** `reference_id` of the order open in the detail pane; its row is highlighted and scrolled into view. */
 	selectedId: string;
 	className?: string;
 }
@@ -42,33 +39,21 @@ export interface OrderListPanelProps {
 /**
  * Order list beside the order detail (Multibranch product list panel): status filter, search,
  * newest-first rows, and a count footer. Clicking a row opens that order without leaving the list.
+ * Filter and search go to the API, like the queue's; the panel shows the newest 50 matches.
  */
 export function OrderListPanel({ selectedId, className }: OrderListPanelProps) {
 	const orderRoutes = useOrderRoutes();
-	const { data, isLoading, isError, refetch } = useOrders();
 	const [filter, setFilter] = useState<OrderStatusFilter>("all");
 	const [query, setQuery] = useState("");
+	const q = useOrderSearch(query);
+	const { data, isLoading, isError, refetch } = useOrders({
+		q,
+		status: filter === "all" ? undefined : filter,
+		page: 1,
+		count: PANEL_PAGE_SIZE,
+	});
 	const selectedRowRef = useRef<HTMLAnchorElement | null>(null);
-
-	const orders = useMemo(
-		() => [...(data ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
-		[data],
-	);
-	const counts = useMemo(() => countByFilter(orders), [orders]);
-	const visible = useMemo(() => {
-		const needle = query.trim().toLowerCase();
-		return orders.filter((order) => {
-			if (filter !== "all" && order.status !== filter) return false;
-			if (!needle) return true;
-			return [
-				order.omsOrderId,
-				order.customerName,
-				order.customerPhone,
-				order.customerPhone.replace(/\D/g, ""),
-				...order.items.map((item) => item.name),
-			].some((value) => value.toLowerCase().includes(needle));
-		});
-	}, [orders, filter, query]);
+	const visible = data?.orders ?? [];
 
 	useEffect(() => {
 		selectedRowRef.current?.scrollIntoView({ block: "nearest" });
@@ -98,10 +83,9 @@ export function OrderListPanel({ selectedId, className }: OrderListPanelProps) {
 								value={filter}
 								onValueChange={(next) => setFilter(next as OrderStatusFilter)}
 							>
-								{FILTERS.map((option) => (
+								{ORDER_STATUS_FILTERS.map((option) => (
 									<DropdownMenuRadioItem key={option} value={option}>
-										<span className="flex-1">{filterLabel(option)}</span>
-										<span className="text-fg-tertiary tabular-nums">{counts[option]}</span>
+										{filterLabel(option)}
 									</DropdownMenuRadioItem>
 								))}
 							</DropdownMenuRadioGroup>
@@ -153,10 +137,10 @@ export function OrderListPanel({ selectedId, className }: OrderListPanelProps) {
 					<ul className="divide-y divide-border">
 						{visible.map((order) => (
 							<OrderListRow
-								key={order.omsOrderId}
+								key={order.referenceId}
 								order={order}
-								active={order.omsOrderId === selectedId}
-								rowRef={order.omsOrderId === selectedId ? selectedRowRef : undefined}
+								active={order.referenceId === selectedId}
+								rowRef={order.referenceId === selectedId ? selectedRowRef : undefined}
 							/>
 						))}
 					</ul>
@@ -164,7 +148,7 @@ export function OrderListPanel({ selectedId, className }: OrderListPanelProps) {
 			</ScrollArea>
 
 			<div className="shrink-0 border-t border-border px-3 py-2 text-xs text-fg-secondary tabular-nums">
-				{visible.length} of {orders.length} orders
+				{visible.length} of {data?.total ?? 0} orders
 			</div>
 		</aside>
 	);
@@ -184,7 +168,7 @@ function OrderListRow({
 		<li>
 			<Link
 				ref={rowRef}
-				href={orderRoutes.detail(order.omsOrderId)}
+				href={orderRoutes.detail(order.referenceId)}
 				aria-current={active ? "page" : undefined}
 				className={cn(
 					"flex flex-col gap-1 border-l-2 px-3 py-2.5 outline-none focus-visible:bg-fill1-alpha",
@@ -203,24 +187,11 @@ function OrderListRow({
 				</span>
 				<span className="flex items-center justify-between gap-2">
 					<span className="truncate text-xs text-fg-secondary">
-						{order.customerName.trim() || order.customerPhone}
+						{order.customer.name || order.customer.contact}
 					</span>
 					<StatusBadge status={order.status} className="shrink-0" />
 				</span>
 			</Link>
 		</li>
 	);
-}
-
-function countByFilter(orders: Order[]): Record<OrderStatusFilter, number> {
-	const counts: Record<OrderStatusFilter, number> = {
-		all: orders.length,
-		preparing: 0,
-		ready_for_delivery: 0,
-		delivering: 0,
-		delivered: 0,
-		failed: 0,
-	};
-	for (const order of orders) counts[order.status] += 1;
-	return counts;
 }

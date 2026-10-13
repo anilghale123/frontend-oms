@@ -1,152 +1,99 @@
 /**
  * Core domain types for the OMS order lifecycle.
  *
- * Pure TypeScript — no React, no Next.js, no feature imports (CLAUDE.md →
- * "Dependency rules"). See CLAUDE.md → "Domain rules" for the business
- * rules these types encode.
+ * Shaped after the Sales service's merchant-portal API (`src/api.md`, "Order object").
+ * `@/lib/api/portal` turns the wire format into these, so screens never deal with snake_case,
+ * `{ data }` envelopes or the fields whose shape the partner chooses.
+ *
+ * Pure TypeScript — no React, no Next.js, no feature imports.
  */
 
-/** OMS order lifecycle. `failed` is an exception state reachable from any
- * in-flight status; it never rolls back the underlying Sales Order
- * (domain rule 4, 11). */
+/** OMS order lifecycle. `delivered` and `failed` are final. */
 export type OrderStatus =
 	"preparing" | "ready_for_delivery" | "delivering" | "delivered" | "failed";
 
-/** Rider name, phone, and vehicle number are all mandatory before an order
- * can move to `delivering` (domain rule 6). */
-export interface RiderDetails {
-	name: string;
-	phone: string;
-	vehicleNumber: string;
-}
-
-/** Outcome of a rider's voucher validation attempt against Fonepoints
- * (domain rule 8). */
-export type ValidationOutcome = "success" | "mismatch" | "already_redeemed" | "redemption_failed";
-
-/** A single entry in an order's activity log. Every state change — status
- * transition, rider assignment, validation attempt, CS override — writes
- * one of these (CLAUDE.md → "Domain rules", closing line). */
-export interface ActivityLogEntry {
-	id: string;
-	omsOrderId: string;
-	type:
-		"order_created" | "status_changed" | "rider_assigned" | "validation_attempt" | "cs_override";
-	message: string;
-	actor: string;
-	timestamp: string;
-	metadata?: Record<string, unknown>;
-}
-
-export const MAX_VALIDATION_ATTEMPTS = 5;
-
-/** How Fonepoints expresses the order's redeemed value. */
+/** `points` — paid in points only; `points_money` — points plus a cash `amount`. */
 export type OrderValueType = "points" | "points_money";
 
+/** Service-only orders may have no delivery address. */
+export type ProductType = "goods" | "service";
+
 /**
- * The deal the customer redeemed, as listed in the Fonepoints app (not a shop product line).
- * Fonepoints sends no selling price in points per item; the order carries the redeemed total.
+ * A value the partner sent under a key OMS has no field for — a rider's vehicle number, an extra
+ * customer attribute. Kept, with a readable label, so it can still be shown.
  */
-export interface OrderItem {
-	/** Deal title as shown in the app, e.g. "HiFuture-Get Sikenai SX 12 60W Braided Data Cable". */
-	name: string;
-	quantity: number;
-	/** Deal photo from the Fonepoints listing; null when there is none. */
-	imageUrl: string | null;
-	/** The struck-through "Market price" in Rs on the listing; null when not shown. */
-	marketPrice: number | null;
+export interface ExtraField {
+	/** From the key: `vehicle_number` → "Vehicle number". */
+	label: string;
+	value: string;
 }
 
-/** Merchant category the redeemed voucher belongs to. */
-export type OrderCategory =
-	| "restaurants"
-	| "cafe"
-	| "bakery"
-	| "shopping"
-	| "grocery"
-	| "travel"
-	| "entertainment"
-	| "beauty_wellness"
-	| "electronics"
-	| "fitness";
+export interface OrderItem {
+	productId: string;
+	name: string;
+	quantity: number;
+	/** e.g. "pcs". Empty when the partner sent none. */
+	unitName: string;
+	productType: ProductType;
+}
 
-export const ORDER_CATEGORY_LABELS: Record<OrderCategory, string> = {
-	restaurants: "Restaurants",
-	cafe: "Cafe",
-	bakery: "Bakery",
-	shopping: "Shopping",
-	grocery: "Grocery",
-	travel: "Travel",
-	entertainment: "Entertainment",
-	beauty_wellness: "Beauty & wellness",
-	electronics: "Electronics",
-	fitness: "Fitness",
-};
+/** The merchant the order belongs to — always the signed-in one. */
+export interface OrderMerchant {
+	id: string;
+	name: string;
+	contact: string;
+	pan: string;
+}
 
-/**
- * Delivery details the customer types on the Fonepoints redeem form. Separate from the profile
- * (`customerName`, `customerPhone`, `customerLocation`): name and number here can differ.
- * The merchant only reads these.
- */
-export interface DeliveryRequest {
+export interface OrderCustomer {
+	/** The partner's id for the customer, e.g. "FPU-55821". */
+	identifier: string;
+	name: string;
+	/** Phone number. */
+	contact: string;
+	/** One line, whatever shape the API sent. Empty when there is none (service-only orders). */
+	deliveryAddress: string;
+	/** Any other keys the partner sent. */
+	extra: ExtraField[];
+}
+
+/** The API's rider is free-form; the name and phone are pulled out and the rest kept. */
+export interface OrderRider {
 	name: string;
 	phone: string;
-	/** Full address as typed by the customer. */
-	address: string;
-	/** Free text under the delivery charge notice. Empty when left blank. */
-	note: string;
-	/** Empty when left blank. */
+	extra: ExtraField[];
+}
+
+/** One step of the status timeline. */
+export interface OrderLog {
+	status: OrderStatus;
+	/** Nepal time, already formatted by the server ("2026-10-09 14:32"). Shown as it is. */
+	date: string;
+	/** The message the customer sees in their order history. */
 	remarks: string;
 }
 
 export interface Order {
-	/** Generated by OMS after the Sales Order is created (domain rule 2). */
+	/** Providhy's id, e.g. "OMS-0427" (wire `order_id`). The one merchants and riders see. */
 	omsOrderId: string;
-	/** The underlying Sales Order record (domain rule 1). */
-	salesOrderId: string;
-	/** Idempotency key from Fonepoints — a repeat create with the same
-	 * reference returns the existing OMS Order ID (domain rule 3). */
-	fonepointsReferenceId: string;
-	merchantId: string;
-	/** Empty when Fonepoints sends no name; UIs fall back to the email. */
-	customerName: string;
-	customerEmail: string;
-	/** Profile photo from Fonepoints, when the customer has one. */
-	customerAvatarUrl: string | null;
-	/** Mobile number the customer logs in to Fonepoints with. */
-	customerPhone: string;
-	/** Location on the customer's Fonepoints profile, free text: an area ("Sanepa, Lalitpur") or a
-	 * full address ("House 82, Sanepa, Lalitpur, behind the ward office"). */
-	customerLocation: string;
-	category: OrderCategory;
-	/** Short delivery area for lists, e.g. "Lalitpur". The full address is in `delivery`. */
-	location: string;
-	/** Delivery date the customer picked on the redeem form (ISO). */
-	deliveryDate: string;
-	/** The customer's answers on the redeem form. */
-	delivery: DeliveryRequest;
-	/** Compared against the rider's input during delivery validation. */
-	voucherCode: string;
-	/** The redeemed deal(s) from Fonepoints; usually one deal, quantity 1. */
+	/**
+	 * The partner's own id, e.g. "ORD001" (wire `reference_id`). Unique, and the key every
+	 * endpoint for one order takes, so it is what URLs and caches use. Shown as "Partner order ID".
+	 */
+	referenceId: string;
+	merchant: OrderMerchant | null;
+	customer: OrderCustomer;
 	items: OrderItem[];
-	/** Points the customer redeemed. */
-	orderValue: number;
-	/** Rs the customer paid on top of the points ("Rs 1,923 + 174 pts"); 0 when `valueType` is
-	 * `points`. */
-	cashAmount: number;
-	valueType: OrderValueType;
 	status: OrderStatus;
-	rider: RiderDetails | null;
-	/** Counts down from MAX_VALIDATION_ATTEMPTS; validation is blocked at 0
-	 * (domain rule 9). */
-	validationAttemptsRemaining: number;
-	/** True once Fonepoints redemption has succeeded, independent of
-	 * whether the order's own status update has been reconciled yet
-	 * (domain rule 13). */
-	voucherRedeemed: boolean;
-	/** Set when a status sync to Fonepoints has failed and is pending
-	 * retry; the OMS status itself is kept as-is (domain rule 12). */
-	pendingStatusSync: boolean;
-	createdAt: string;
-	updatedAt: string;
+	valueType: OrderValueType;
+	/** Points redeemed; `null` when the server sent none. */
+	points: number | null;
+	/** Rs paid on top of the points; `null` for points-only orders. */
+	amount: number | null;
+	/** `null` until a rider is assigned. */
+	rider: OrderRider | null;
+	/** Status timeline, oldest first. */
+	logs: OrderLog[];
+	/** Nepal time, already formatted ("2026-10-09 10:30"). */
+	created: string;
 }

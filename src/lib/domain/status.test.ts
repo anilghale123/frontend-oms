@@ -1,58 +1,88 @@
 import { describe, expect, it } from "vitest";
-import { ORDER_STATUS_LABELS, ORDER_STATUS_SEQUENCE, canTransition } from "./status";
-import type { OrderStatus } from "./types";
+import {
+	ORDER_STATUSES,
+	ORDER_STATUS_LABELS,
+	ORDER_STATUS_SEQUENCE,
+	goesThroughAssignRider,
+	isFinalStatus,
+	isOrderStatus,
+	needsConfirmation,
+	otherStatuses,
+	primaryAction,
+} from "./status";
 
-const ALL_STATUSES: OrderStatus[] = [
-	"preparing",
-	"ready_for_delivery",
-	"delivering",
-	"delivered",
-	"failed",
-];
-
-describe("canTransition", () => {
-	it("allows the merchant steps along the happy path", () => {
-		expect(canTransition("preparing", "ready_for_delivery")).toBe(true);
-		expect(canTransition("ready_for_delivery", "delivering")).toBe(true);
+describe("primaryAction", () => {
+	it("matches the guide's table of primary actions per status", () => {
+		// src/api.md, "Status flow and actions per status".
+		expect(primaryAction("preparing")).toMatchObject({ kind: "status", to: "ready_for_delivery" });
+		expect(primaryAction("ready_for_delivery")).toMatchObject({ kind: "assign_rider" });
+		expect(primaryAction("delivering")).toMatchObject({ kind: "status", to: "delivered" });
+		expect(primaryAction("delivered")).toBeNull();
+		expect(primaryAction("failed")).toBeNull();
 	});
 
-	it("never allows a manual move to delivered — only voucher redemption reaches it", () => {
-		for (const from of ALL_STATUSES) {
-			expect(canTransition(from, "delivered")).toBe(false);
+	it("labels every action, so no screen invents copy", () => {
+		for (const status of ORDER_STATUSES) {
+			const action = primaryAction(status);
+			if (action) expect(action.label).toBeTruthy();
 		}
 	});
 
-	it("allows failing any in-flight order but not a finished one", () => {
-		expect(canTransition("preparing", "failed")).toBe(true);
-		expect(canTransition("ready_for_delivery", "failed")).toBe(true);
-		expect(canTransition("delivering", "failed")).toBe(true);
-		expect(canTransition("delivered", "failed")).toBe(false);
-		expect(canTransition("failed", "failed")).toBe(false);
+	it("walks the whole happy path, with Assign rider standing in for delivering", () => {
+		for (let i = 0; i < ORDER_STATUS_SEQUENCE.length - 1; i += 1) {
+			const action = primaryAction(ORDER_STATUS_SEQUENCE[i]);
+			const next = ORDER_STATUS_SEQUENCE[i + 1];
+			if (action?.kind === "status") expect(action.to).toBe(next);
+			else expect(goesThroughAssignRider(next)).toBe(true);
+		}
 	});
+});
 
-	it("treats delivered and failed as terminal", () => {
-		for (const to of ALL_STATUSES) {
-			expect(canTransition("delivered", to)).toBe(false);
-			expect(canTransition("failed", to)).toBe(false);
+describe("otherStatuses", () => {
+	it("offers every status except the current one, from any status", () => {
+		// The server accepts any status from any status, including away from a final one.
+		for (const status of ORDER_STATUSES) {
+			const others = otherStatuses(status);
+			expect(others).not.toContain(status);
+			expect(others).toHaveLength(ORDER_STATUSES.length - 1);
 		}
 	});
 
-	it("does not allow skipping a step or moving backwards", () => {
-		expect(canTransition("preparing", "delivering")).toBe(false);
-		expect(canTransition("delivering", "ready_for_delivery")).toBe(false);
-		expect(canTransition("ready_for_delivery", "preparing")).toBe(false);
+	it("routes delivering through Assign rider, so the rider is recorded", () => {
+		expect(goesThroughAssignRider("delivering")).toBe(true);
+		expect(goesThroughAssignRider("delivered")).toBe(false);
+	});
+});
+
+describe("needsConfirmation", () => {
+	it("confirms Mark delivered and Mark failed from anywhere", () => {
+		for (const from of ORDER_STATUSES) {
+			if (from !== "delivered") expect(needsConfirmation(from, "delivered")).toBe(true);
+			if (from !== "failed") expect(needsConfirmation(from, "failed")).toBe(true);
+		}
 	});
 
-	it("does not allow a status to transition to itself", () => {
-		for (const status of ALL_STATUSES) {
-			expect(canTransition(status, status)).toBe(false);
-		}
+	it("confirms any change away from a final status", () => {
+		expect(needsConfirmation("delivered", "preparing")).toBe(true);
+		expect(needsConfirmation("failed", "ready_for_delivery")).toBe(true);
+	});
+
+	it("does not confirm the ordinary steps", () => {
+		expect(needsConfirmation("preparing", "ready_for_delivery")).toBe(false);
+		expect(needsConfirmation("ready_for_delivery", "preparing")).toBe(false);
+		expect(needsConfirmation("ready_for_delivery", "delivering")).toBe(false);
+	});
+
+	it("treats delivered and failed as the end of the flow", () => {
+		expect(isFinalStatus("delivered")).toBe(true);
+		expect(isFinalStatus("failed")).toBe(true);
+		expect(isFinalStatus("delivering")).toBe(false);
 	});
 });
 
 describe("status metadata", () => {
 	it("labels every status, so no UI has to invent copy", () => {
-		for (const status of ALL_STATUSES) {
+		for (const status of ORDER_STATUSES) {
 			expect(ORDER_STATUS_LABELS[status]).toBeTruthy();
 		}
 	});
@@ -67,11 +97,9 @@ describe("status metadata", () => {
 		expect(ORDER_STATUS_SEQUENCE).not.toContain("failed");
 	});
 
-	it("keeps the sequence walkable by canTransition up to delivering", () => {
-		// delivered is deliberately unreachable manually, so stop one short.
-		const manual = ORDER_STATUS_SEQUENCE.slice(0, 3);
-		for (let i = 0; i < manual.length - 1; i += 1) {
-			expect(canTransition(manual[i], manual[i + 1])).toBe(true);
-		}
+	it("recognises only the five statuses the API sends", () => {
+		expect(isOrderStatus("ready_for_delivery")).toBe(true);
+		expect(isOrderStatus("cancelled")).toBe(false);
+		expect(isOrderStatus(undefined)).toBe(false);
 	});
 });

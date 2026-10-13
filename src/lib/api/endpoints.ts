@@ -5,36 +5,41 @@
  * requests from these rather than writing path strings inline, so a backend route change is a
  * one-line edit here.
  *
- * Paths are relative to `OMS_API_BASE` (`@/config/env`) and must not start with a slash-prefixed
- * origin. No React code in this folder.
+ * Order paths are relative to `OMS_API_BASE` (the `/api/oms` proxy) and have no trailing slash:
+ * the Sales service wants one (`orders/`, `orders/{reference_id}/status/`) and the proxy adds it.
+ * Every endpoint for one order takes the partner's `reference_id`, not the `OMS-…` id shown on
+ * screen (`src/api.md`). No React code in this folder.
  */
 
 const encode = encodeURIComponent;
 
 export const API_ENDPOINTS = {
 	orders: {
-		/** GET list (optionally scoped to one merchant), POST create (idempotent on the reference). */
+		/** GET a page of the merchant's orders: `q`, `status`, `page`, `count`. */
 		list: "/orders",
-		/** GET one order plus its activity log. */
-		detail: (omsOrderId: string) => `/orders/${encode(omsOrderId)}`,
-		/** PATCH a fulfillment status transition. */
-		status: (omsOrderId: string) => `/orders/${encode(omsOrderId)}/status`,
-		/** PATCH rider name, phone and vehicle number. */
-		rider: (omsOrderId: string) => `/orders/${encode(omsOrderId)}/rider`,
+		/** GET one order. */
+		detail: (referenceId: string) => `/orders/${encode(referenceId)}`,
+		/** POST `{ status, remarks? }`. */
+		status: (referenceId: string) => `/orders/${encode(referenceId)}/status`,
+		/** POST `{ rider, remarks? }`. Records the rider and moves the order to `delivering`. */
+		assignRider: (referenceId: string) => `/orders/${encode(referenceId)}/assign-rider`,
 	},
-	/** POST the rider's Order ID + voucher pair. */
-	validate: "/validate",
-	/**
-	 * Prototype-only backdoors used by the rider portal's simulated QR scan and
-	 * "Simulate delivery" shortcut. Remove with the mock backend.
-	 */
-	dev: {
-		voucher: (omsOrderId: string) => `/dev/voucher/${encode(omsOrderId)}`,
-		delivering: "/dev/delivering",
+	rider: {
+		/** POST `{ order_id, voucher_code }`, relative to `RIDER_API_BASE`. */
+		deliver: "/deliver",
 	},
 } as const;
 
-/** `?merchantId=...` when scoping the order list to one merchant, else an empty string. */
-export function merchantQuery(merchantId?: string): string {
-	return merchantId ? `?merchantId=${encode(merchantId)}` : "";
+/** `path?a=1&b=2`, leaving out empty values; `path` alone when nothing is set. */
+export function withQuery(
+	path: string,
+	params: Record<string, string | number | undefined | null>,
+): string {
+	const query = new URLSearchParams();
+	for (const [key, value] of Object.entries(params)) {
+		if (value === undefined || value === null || value === "") continue;
+		query.set(key, String(value));
+	}
+	const search = query.toString();
+	return search ? `${path}?${search}` : path;
 }

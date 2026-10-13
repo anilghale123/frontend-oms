@@ -1,41 +1,41 @@
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import type { Order } from "@/lib/domain";
-import { initialsOf } from "@/lib/utils";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import type { OrderCustomer } from "@/lib/domain";
+import { formatPhone, initialsOf } from "@/lib/utils";
 import { DetailField, EmptyValue } from "../detail-field";
 
 export interface OrderCustomerDetailsProps {
-	order: Pick<
-		Order,
-		"customerName" | "customerEmail" | "customerAvatarUrl" | "customerPhone" | "customerLocation"
-	>;
+	customer: OrderCustomer;
 }
 
 /**
- * Customer section body: the customer's Fonepoints profile (photo, name, phone, email, location).
- * What they typed when ordering is in the Delivery details card. Read-only.
+ * Customer section body: what the partner sent about the customer — name, phone, the partner's
+ * customer ID, and any other attributes it included. Read-only.
  */
-export function OrderCustomerDetails({ order }: OrderCustomerDetailsProps) {
-	const name = order.customerName.trim();
-
+export function OrderCustomerDetails({ customer }: OrderCustomerDetailsProps) {
 	return (
 		<div className="flex flex-col gap-4">
 			<div className="flex min-w-0 items-center gap-3">
 				<Avatar size="40">
-					{order.customerAvatarUrl && <AvatarImage src={order.customerAvatarUrl} alt="" />}
-					<AvatarFallback>{initialsOf(name, order.customerEmail)}</AvatarFallback>
+					<AvatarFallback>{initialsOf(customer.name, customer.identifier)}</AvatarFallback>
 				</Avatar>
 				<div className="flex min-w-0 flex-col">
 					<span className="truncate text-sm font-medium text-fg">
-						{name || <EmptyValue>No name on file</EmptyValue>}
+						{customer.name || <EmptyValue>No name on file</EmptyValue>}
 					</span>
 					<span className="truncate text-xs text-fg-secondary tabular-nums">
-						{order.customerPhone || <EmptyValue>No phone on file</EmptyValue>}
+						{formatPhone(customer.contact) || <EmptyValue>No phone on file</EmptyValue>}
 					</span>
 				</div>
 			</div>
 			<dl className="grid gap-3">
-				<DetailField label="Email">{order.customerEmail || <EmptyValue />}</DetailField>
-				<DetailField label="Location">{order.customerLocation || <EmptyValue />}</DetailField>
+				<DetailField label="Customer ID" numeric>
+					{customer.identifier || <EmptyValue />}
+				</DetailField>
+				{customer.extra.map((field) => (
+					<DetailField key={field.label} label={field.label}>
+						{field.value}
+					</DetailField>
+				))}
 			</dl>
 		</div>
 	);

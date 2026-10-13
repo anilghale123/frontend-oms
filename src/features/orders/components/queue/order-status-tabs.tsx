@@ -1,11 +1,6 @@
 "use client";
 
-import {
-	ORDER_STATUS_LABELS,
-	ORDER_STATUS_SEQUENCE,
-	type Order,
-	type OrderStatus,
-} from "@/lib/domain";
+import { ORDER_STATUSES, ORDER_STATUS_LABELS, type OrderStatus } from "@/lib/domain";
 import {
 	Select,
 	SelectContent,
@@ -19,30 +14,21 @@ const ALL = "all";
 
 export type OrderStatusFilter = OrderStatus | typeof ALL;
 
+/** All, then each status the API can filter by. */
+export const ORDER_STATUS_FILTERS: OrderStatusFilter[] = [ALL, ...ORDER_STATUSES];
+
 export interface OrderStatusTabsProps {
-	orders: Order[];
 	value: OrderStatusFilter;
 	onValueChange: (value: OrderStatusFilter) => void;
 }
 
 /**
- * Status filter with per-status counts (Multibranch list pattern): a joined outline button row,
- * active option in solid primary. Built on Radian `ToggleGroup` (single select). Below `sm` the
- * row doesn't fit, so the same options render as a full-width Radian `Select` instead.
+ * Status filter (Multibranch list pattern): a joined outline button row, active option in solid
+ * primary. Built on Radian `ToggleGroup` (single select). Below `sm` the row doesn't fit, so the
+ * same options render as a full-width Radian `Select` instead. No counts: the API reports only the
+ * total for the current filter.
  */
-export function OrderStatusTabs({ orders, value, onValueChange }: OrderStatusTabsProps) {
-	const counts = countByStatus(orders);
-	const options: { value: OrderStatusFilter; label: string; count: number }[] = [
-		{ value: ALL, label: "All", count: orders.length },
-		// Failed tab hidden for now: ...[...ORDER_STATUS_SEQUENCE, "failed" as const]
-		// Delivering tab hidden for now: drop the filter to show it again.
-		...ORDER_STATUS_SEQUENCE.filter((status) => status !== "delivering").map((status) => ({
-			value: status,
-			label: ORDER_STATUS_LABELS[status],
-			count: counts[status],
-		})),
-	];
-
+export function OrderStatusTabs({ value, onValueChange }: OrderStatusTabsProps) {
 	return (
 		<>
 			{/* Phones: the joined button row doesn't fit, so the same options become a select. */}
@@ -51,9 +37,9 @@ export function OrderStatusTabs({ orders, value, onValueChange }: OrderStatusTab
 					<SelectValue />
 				</SelectTrigger>
 				<SelectContent>
-					{options.map((option) => (
-						<SelectItem key={option.value} value={option.value}>
-							{option.value === ALL ? "All statuses" : option.label}
+					{ORDER_STATUS_FILTERS.map((option) => (
+						<SelectItem key={option} value={option}>
+							{option === ALL ? "All statuses" : ORDER_STATUS_LABELS[option]}
 						</SelectItem>
 					))}
 				</SelectContent>
@@ -70,34 +56,16 @@ export function OrderStatusTabs({ orders, value, onValueChange }: OrderStatusTab
 					if (next) onValueChange(next as OrderStatusFilter);
 				}}
 			>
-				{options.map((option) => (
+				{ORDER_STATUS_FILTERS.map((option) => (
 					<ToggleGroupItem
-						key={option.value}
-						value={option.value}
+						key={option}
+						value={option}
 						className="data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-fg data-[state=on]:hover:bg-primary-hover"
 					>
-						{option.label}
-						{/* Counts hidden for now.
-					<span className="text-fg-tertiary tabular-nums group-data-[state=on]/toggle:text-primary-fg">
-						{option.count}
-					</span> */}
+						{option === ALL ? "All" : ORDER_STATUS_LABELS[option]}
 					</ToggleGroupItem>
 				))}
 			</ToggleGroup>
 		</>
 	);
-}
-
-function countByStatus(orders: Order[]): Record<OrderStatus, number> {
-	const counts: Record<OrderStatus, number> = {
-		preparing: 0,
-		ready_for_delivery: 0,
-		delivering: 0,
-		delivered: 0,
-		failed: 0,
-	};
-	for (const order of orders) {
-		counts[order.status] += 1;
-	}
-	return counts;
 }

@@ -24,25 +24,44 @@ export const HOST_SOURCE = "fonepoints-host";
 /** Light or dark only — the host resolves "system" before it sends. */
 export type HostThemeMode = Extract<AppearanceMode, "light" | "dark">;
 
+/**
+ * Why OMS is asking the portal for a token: it has no session cookie (`missing`), or the Sales
+ * service refused the token OMS had — revoked, replaced or simply wrong (`rejected`). Tokens do not
+ * expire, so `rejected` tells the portal this is a second ask: whatever it gave before did not work.
+ */
+export type GrantReason = "missing" | "rejected";
+
 /** Messages OMS sends to the portal. */
 export type OmsToHost =
-	/** OMS mounted and is listening. Sent again after every reload, so the host must re-answer. */
+	/**
+	 * OMS mounted and is listening. Sent again after every reload. It says nothing about the
+	 * session: the host answers with the theme only, and waits for `oms.auth.ok` or
+	 * `oms.auth.renew` before doing anything about a token.
+	 */
 	| { type: "oms.ready" }
 	/** The merchant navigated inside OMS, so the host can follow in its breadcrumb and URL. */
 	| { type: "oms.route.changed"; path: string; title: string }
-	// Declared for the auth phase (auth.md section 8); not sent yet.
-	| { type: "oms.auth.ok"; merchantId: string }
+	/**
+	 * OMS has a session. `existing` means its cookie was there, so no token was needed; `new` means
+	 * it has just stored a `host.auth.grant`. `merchantId` is sent only when OMS knows it (the
+	 * development sign-in); OMS does not call Sales to sign in, so it usually does not.
+	 */
+	| { type: "oms.auth.ok"; merchantId?: string; session: "existing" | "new" }
 	| { type: "oms.auth.failed"; reason: string }
-	| { type: "oms.auth.renew" };
+	/** OMS has no usable session and asks for a token. The only message that should start one. */
+	| { type: "oms.auth.renew"; reason: GrantReason }
+	/** Sent by `/embed-signout` once the session cookies are deleted: portal sign-out is done. */
+	| { type: "oms.auth.cleared" };
 
 /** Messages OMS accepts from the portal. */
 export type HostToOms =
 	/** Host appearance. Applied transiently — never persisted (auth.md section 9). */
 	| { type: "host.theme"; mode: HostThemeMode; accent?: string }
-	/** Host deep link, e.g. the browser back button in the portal. */
+	/** Host deep link, e.g. the browser back button in the portal. Declared, not handled yet. */
 	| { type: "host.route.request"; path: string }
-	// Declared for the auth phase (auth.md section 8); not handled yet.
+	/** The answer to `oms.auth.renew`. Used only while OMS is waiting for one. */
 	| { type: "host.auth.grant"; token: string; expiresAt: string }
+	/** The portal could not get a token: `no_session` or `token_request_failed`. */
 	| { type: "host.auth.denied"; reason: string };
 
 /** Every message carries the envelope, so unrelated postMessage traffic is easy to reject. */

@@ -2,17 +2,17 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "@/components/data-display";
-import { Badge } from "@/components/ui/badge";
-import { ORDER_CATEGORY_LABELS, ORDER_STATUS_LABELS, type Order } from "@/lib/domain";
-import { formatDateTime, formatOrderValue } from "@/lib/utils";
+import { ORDER_STATUS_LABELS, type Order } from "@/lib/domain";
+import { formatOrderValue } from "@/lib/utils";
 import { CustomerCell } from "./customer-cell";
 import { ItemCell } from "./item-cell";
 import { OrderStatusAction } from "./order-status-action";
 import { StatusBadge } from "../status-badge";
 
 /**
- * Order queue columns. OMS Order ID, customer, status and actions always show; the rest are
- * secondary and can be hidden from the "Columns" menu. `meta.export` drives CSV/Excel output.
+ * Order queue columns. OMS Order ID, customer, status and actions always show; Partner order ID is
+ * hidden by default. Search, filtering and paging are done by the API, so columns do not sort.
+ * `meta.export` drives CSV/Excel output.
  */
 export function createOrderColumns(): ColumnDef<Order, unknown>[] {
 	return [
@@ -27,24 +27,21 @@ export function createOrderColumns(): ColumnDef<Order, unknown>[] {
 		},
 		{
 			id: "customer",
-			// Name + phone (formatted and digits-only) so search matches either; sorting follows the name.
-			accessorFn: (order) =>
-				`${order.customerName || order.customerPhone} ${order.customerPhone} ${order.customerPhone.replace(/\D/g, "")}`,
+			accessorFn: (order) => order.customer.name || order.customer.contact,
 			enableHiding: false,
 			meta: {
 				label: "Customer",
 				export: [
-					{ label: "Customer", value: (order) => order.customerName },
-					{ label: "Phone", value: (order) => order.customerPhone },
-					{ label: "Email", value: (order) => order.customerEmail },
+					{ label: "Customer", value: (order) => order.customer.name },
+					{ label: "Phone", value: (order) => order.customer.contact },
+					{ label: "Customer ID", value: (order) => order.customer.identifier },
 				],
 			},
 			header: ({ column }) => <DataTableColumnHeader column={column} title="Customer" />,
-			cell: ({ row }) => <CustomerCell order={row.original} />,
+			cell: ({ row }) => <CustomerCell customer={row.original.customer} />,
 		},
 		{
 			id: "product",
-			// Deal titles joined so search matches any product; sorting follows the first.
 			accessorFn: (order) => order.items.map((item) => item.name).join(" "),
 			meta: {
 				label: "Product",
@@ -60,27 +57,13 @@ export function createOrderColumns(): ColumnDef<Order, unknown>[] {
 			cell: ({ row }) => <ItemCell order={row.original} />,
 		},
 		{
-			id: "category",
-			accessorFn: (order) => ORDER_CATEGORY_LABELS[order.category],
-			meta: { label: "Category" },
-			header: ({ column }) => <DataTableColumnHeader column={column} title="Category" />,
-			cell: ({ row }) => (
-				<Badge variant="soft" color="neutral" size="20" className="whitespace-nowrap">
-					{ORDER_CATEGORY_LABELS[row.original.category]}
-				</Badge>
-			),
-		},
-		{
-			accessorKey: "orderValue",
+			id: "value",
+			accessorFn: (order) => formatOrderValue(order),
 			meta: {
 				label: "Value",
 				export: [
-					{ label: "Points", value: (order) => order.orderValue },
-					{ label: "Cash (Rs)", value: (order) => order.cashAmount },
-					{
-						label: "Value type",
-						value: (order) => (order.valueType === "points" ? "Points" : "Points + cash"),
-					},
+					{ label: "Points", value: (order) => order.points },
+					{ label: "Cash (Rs)", value: (order) => order.amount },
 				],
 			},
 			header: ({ column }) => <DataTableColumnHeader column={column} title="Value" />,
@@ -92,17 +75,18 @@ export function createOrderColumns(): ColumnDef<Order, unknown>[] {
 		},
 		{
 			id: "location",
-			// The delivery address as the customer typed it, from "Sanepa, Lalitpur" to
-			// "House 82, Sanepa, Lalitpur, behind the ward office". Long ones clamp to two lines.
-			accessorFn: (order) => order.delivery.address || order.location,
+			// The delivery address, one line. Service-only orders may have none.
+			accessorFn: (order) => order.customer.deliveryAddress,
 			meta: { label: "Location" },
 			header: ({ column }) => <DataTableColumnHeader column={column} title="Location" />,
 			cell: ({ getValue }) => {
 				const address = getValue<string>();
-				return (
+				return address ? (
 					<span className="line-clamp-2 max-w-xs min-w-40 text-fg-secondary" title={address}>
 						{address}
 					</span>
+				) : (
+					<span className="text-fg-tertiary">—</span>
 				);
 			},
 		},
@@ -115,28 +99,23 @@ export function createOrderColumns(): ColumnDef<Order, unknown>[] {
 			},
 			header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
 			cell: ({ row }) => <StatusBadge status={row.original.status} />,
-			filterFn: (row, _id, value: string) => row.original.status === value,
 		},
 		{
-			accessorKey: "fonepointsReferenceId",
-			meta: { label: "Reference" },
-			header: ({ column }) => <DataTableColumnHeader column={column} title="Reference" />,
+			accessorKey: "referenceId",
+			meta: { label: "Partner order ID" },
+			header: ({ column }) => <DataTableColumnHeader column={column} title="Partner order ID" />,
 			cell: ({ row }) => (
-				<span className="whitespace-nowrap text-fg-secondary">
-					{row.original.fonepointsReferenceId}
-				</span>
+				<span className="whitespace-nowrap text-fg-secondary">{row.original.referenceId}</span>
 			),
 		},
 		{
-			accessorKey: "createdAt",
-			meta: {
-				label: "Created",
-				export: [{ label: "Created", value: (order) => formatDateTime(order.createdAt) }],
-			},
+			accessorKey: "created",
+			meta: { label: "Created" },
 			header: ({ column }) => <DataTableColumnHeader column={column} title="Created" />,
+			// Nepal time, formatted by the server; shown as it is.
 			cell: ({ row }) => (
 				<span className="whitespace-nowrap text-fg-secondary tabular-nums">
-					{formatDateTime(row.original.createdAt)}
+					{row.original.created}
 				</span>
 			),
 		},

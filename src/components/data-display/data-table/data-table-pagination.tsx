@@ -27,7 +27,8 @@ export function DataTablePagination<TData>({
 }: DataTablePaginationProps<TData>) {
 	const labelId = useId();
 	const { pageIndex, pageSize } = table.getState().pagination;
-	const total = table.getFilteredRowModel().rows.length;
+	// The filtered row count client-side; the API's total when the table is paged by the server.
+	const total = table.getRowCount();
 	const start = total === 0 ? 0 : pageIndex * pageSize + 1;
 	const end = Math.min(total, (pageIndex + 1) * pageSize);
 

@@ -1,11 +1,18 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Nunito } from "next/font/google";
 import { Toaster } from "sonner";
 import { AppearanceSync } from "@/components/layout";
 import { APPEARANCE_BOOT_SCRIPT } from "@/lib/appearance";
 import { QueryProvider } from "@/providers/QueryProvider";
 import "./globals.css";
 
+/** The Fonepoints brand typeface, and the default. A variable font, so every weight is available. */
+const nunito = Nunito({
+	variable: "--font-nunito",
+	subsets: ["latin"],
+});
+
+/** Still loaded for the "Geist" font the portal or a stored appearance may choose. */
 const geistSans = Geist({
 	variable: "--font-geist-sans",
 	subsets: ["latin"],
@@ -25,7 +32,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
 	return (
 		<html
 			lang="en"
-			className={`${geistSans.variable} ${geistMono.variable} ${geistSans.className} h-full antialiased`}
+			className={`${nunito.variable} ${geistSans.variable} ${geistMono.variable} ${nunito.className} h-full antialiased`}
 			suppressHydrationWarning
 		>
 			<body className="flex min-h-full flex-col bg-fill1">
@@ -33,7 +40,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
 				<AppearanceSync />
 				{/*
 				 * The session is per surface, not global: it is established by `AuthProvider` in
-				 * the `(merchant)` and `embed` layouts. The rider portal deliberately has none —
+				 * the `embed` layout. The rider portal deliberately has none —
 				 * a rider holds a link, not an account — so mounting it here would make `/deliver`
 				 * wait on a sign-in it must never need.
 				 */}

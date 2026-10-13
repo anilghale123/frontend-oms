@@ -9,7 +9,7 @@ import {
 	AccordionTrigger,
 } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { ActivityLogEntry, Order } from "@/lib/domain";
+import type { Order } from "@/lib/domain";
 import { OrderCustomerDetails } from "./order-customer-panel";
 import { OrderActivityList } from "./order-fulfillment";
 import { OrderRiderDetails } from "./order-rider-panel";
@@ -24,7 +24,6 @@ const ACTIVITY_SCROLL_AFTER = 5;
 
 export interface OrderSidePanelProps {
 	order: Order;
-	activity: ActivityLogEntry[];
 }
 
 /**
@@ -33,8 +32,8 @@ export interface OrderSidePanelProps {
  * one-line summary on its header so merchants rarely need to open it; an open section gets the
  * same divider under its header as the other cards. Long activity logs scroll inside the section.
  */
-export function OrderSidePanel({ order, activity }: OrderSidePanelProps) {
-	const eventCount = activity.length;
+export function OrderSidePanel({ order }: OrderSidePanelProps) {
+	const eventCount = order.logs.length;
 
 	return (
 		<Panel flush>
@@ -42,11 +41,11 @@ export function OrderSidePanel({ order, activity }: OrderSidePanelProps) {
 				<Section
 					value="customer"
 					title="Customer"
-					summary={order.customerName.trim() || order.customerEmail}
+					summary={order.customer.name || order.customer.contact || "Not provided"}
 				>
-					<OrderCustomerDetails order={order} />
+					<OrderCustomerDetails customer={order.customer} />
 				</Section>
-				<Section value="rider" title="Rider" summary={order.rider?.name ?? "Not assigned"}>
+				<Section value="rider" title="Rider" summary={order.rider?.name || "Not assigned"}>
 					<OrderRiderDetails rider={order.rider} />
 				</Section>
 				<Section
@@ -56,10 +55,10 @@ export function OrderSidePanel({ order, activity }: OrderSidePanelProps) {
 				>
 					{eventCount > ACTIVITY_SCROLL_AFTER ? (
 						<ScrollArea className="-mr-2 h-80 pr-3">
-							<OrderActivityList entries={activity} />
+							<OrderActivityList logs={order.logs} />
 						</ScrollArea>
 					) : (
-						<OrderActivityList entries={activity} />
+						<OrderActivityList logs={order.logs} />
 					)}
 				</Section>
 			</Accordion>

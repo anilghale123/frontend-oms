@@ -8,44 +8,73 @@ import "server-only";
  * `undefined` in the browser and fail silently; here the `server-only` import turns an accidental
  * client import into a build error instead.
  *
- * Read by the route handlers in `src/app/api/session` and `src/app/api/oms` — the only code that
- * holds the access token or talks to the OMS backend.
+ * Read by the route handlers in `src/app/api` — the only code that holds the access token or
+ * talks to the Sales service.
  */
+
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
+
+/** The development Sales service, used when `OMS_SALES_URL` is not set outside production. */
+const DEV_SALES_URL = "https://dev-sales-api.providhy.com/";
 
 /**
- * Where the OMS backend answers. The browser never calls it: requests go to this app's
- * `/api/oms/*` proxy, which attaches the token from the cookie and forwards them. That is what
- * keeps the token out of page JavaScript and makes CORS unnecessary.
+ * The Sales service, `{SALES_URL}` in `src/api.md`. Always ends in `/`.
+ *
+ * The browser never calls it: screens go through this app's `/api/oms/*` proxy, which attaches
+ * the token and forwards here, so neither CORS nor the backend's allowed origins come into it.
+ *
+ * Outside production it defaults to the development Sales service. A production build has no
+ * default — guessing a host there would turn a configuration mistake into a confusing network
+ * error — so the proxy answers 503 with `SALES_CONFIG_PROBLEM` instead.
  */
-export const OMS_BACKEND_URL = process.env.OMS_BACKEND_URL?.trim() || "http://localhost:3001";
+const sales = readSalesUrl(process.env.OMS_SALES_URL);
+
+export const SALES_URL = sales.url;
+
+/** Why `SALES_URL` is empty, in words for the screen; `null` when it is set. */
+export const SALES_CONFIG_PROBLEM = sales.problem;
+
+/** `{SALES_URL}api/oms/portal/` — every merchant-portal endpoint lives under it. */
+export const SALES_PORTAL_API = SALES_URL ? `${SALES_URL}api/oms/portal/` : "";
+
+/** `{SALES_URL}api/oms/rider/` — the rider's delivery confirmation. No token: riders have none. */
+export const SALES_RIDER_API = SALES_URL ? `${SALES_URL}api/oms/rider/` : "";
 
 /**
- * Where the access token comes from.
- *
- * - `host` — the real flow. The Fonepoints portal frames OMS and sends the token it obtained from
- *   its own backend over `postMessage`. Nothing else can produce a session.
- * - `dev` — additionally allows `POST /api/session/dev`, which mints a token by presenting the
- *   company API key from this server. It exists so the standalone dashboard at `/orders` still
- *   works with no portal running, which is most of local development.
- *
- * `dev` is the default outside production and is refused in production whatever it is set to,
- * because a frontend that can mint its own sessions is not an authentication boundary.
+ * How long to wait for the Sales service before giving up. An error in seconds is more useful
+ * than a spinner that never ends.
  */
-const requested =
-	process.env.OMS_AUTH_MODE?.trim() || (process.env.NODE_ENV === "production" ? "host" : "dev");
-
-export const AUTH_MODE: "host" | "dev" =
-	requested === "dev" && process.env.NODE_ENV !== "production" ? "dev" : "host";
+export const UPSTREAM_TIMEOUT_MS = 15_000;
 
 /**
- * The company API key, used **only** by the `dev` mint above.
- *
- * In the real flow this key lives in the Fonepoints backend and this app never sees it. It is
- * accepted here as a local shortcut, which is exactly why `AUTH_MODE` cannot be `dev` in
- * production. Must match `OMS_COMPANY_API_KEY` in `oms-backend`.
+ * Shown when the Sales service cannot be reached. Development names the address, because the
+ * usual cause there is a wrong `OMS_SALES_URL` or no network; production does not, because a
+ * backend address is nobody's business on a merchant's screen.
  */
-export const DEV_API_KEY =
-	process.env.OMS_DEV_API_KEY?.trim() || "oms_ck_dev_fonepoints_replace_me";
+export function salesUnreachableMessage(): string {
+	return IS_PRODUCTION
+		? "Couldn't reach OMS. Check your connection and try again."
+		: `Couldn't reach the Sales service at ${SALES_URL}. Check OMS_SALES_URL and your network.`;
+}
 
-/** Which merchant the `dev` mint signs in as. An `externalRef` from the OMS registration. */
-export const DEV_MERCHANT_REF = process.env.OMS_DEV_MERCHANT_REF?.trim() || "fp-hamro-mobile";
+function readSalesUrl(raw: string | undefined): { url: string; problem: string | null } {
+	const value = raw?.trim() || (IS_PRODUCTION ? "" : DEV_SALES_URL);
+	if (!value) {
+		return {
+			url: "",
+			problem: "OMS_SALES_URL is not set. Set the Sales service's address and restart.",
+		};
+	}
+
+	try {
+		const parsed = new URL(value);
+		if (parsed.protocol !== "http:" && parsed.protocol !== "https:") throw new Error("protocol");
+		// `{SALES_URL}` ends in `/` by definition, and every path is appended to it.
+		return { url: parsed.href.endsWith("/") ? parsed.href : `${parsed.href}/`, problem: null };
+	} catch {
+		return {
+			url: "",
+			problem: `OMS_SALES_URL ("${value}") is not a valid http(s) URL. Use the form ${DEV_SALES_URL} and restart.`,
+		};
+	}
+}

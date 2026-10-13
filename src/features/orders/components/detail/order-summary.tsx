@@ -1,16 +1,21 @@
 import { Package } from "lucide-react";
 import { Panel, PanelContent, PanelHeader, PanelTitle } from "@/components/layout";
 import { Badge } from "@/components/ui/badge";
-import { ORDER_CATEGORY_LABELS, type Order, type OrderItem } from "@/lib/domain";
-import { formatOrderValue, formatRs } from "@/lib/utils";
+import type { Order, OrderItem } from "@/lib/domain";
+import { formatOrderValue, formatPoints, formatRs } from "@/lib/utils";
 
 export interface OrderSummaryProps {
 	order: Order;
 }
 
+const PRODUCT_TYPE_LABELS: Record<OrderItem["productType"], string> = {
+	goods: "Goods",
+	service: "Service",
+};
+
 /**
- * Item card: the redeemed deal as the customer saw it in the Fonepoints app (photo, deal title,
- * price in Rs + points, struck-through market price), then what the customer paid.
+ * Items card: each ordered product (name, type, quantity, product ID), then what the customer
+ * paid — points, plus cash for `points_money` orders.
  */
 export function OrderSummary({ order }: OrderSummaryProps) {
 	const single = order.items.length === 1;
@@ -30,12 +35,7 @@ export function OrderSummary({ order }: OrderSummaryProps) {
 			</PanelHeader>
 			<ul className="divide-y divide-border">
 				{order.items.map((item, index) => (
-					<DealRow
-						key={`${item.name}-${index}`}
-						item={item}
-						category={ORDER_CATEGORY_LABELS[order.category]}
-						price={single ? formatOrderValue(order) : null}
-					/>
+					<ItemRow key={`${item.productId}-${index}`} item={item} />
 				))}
 			</ul>
 			<PanelContent className="gap-2 border-t border-border text-sm">
@@ -43,13 +43,13 @@ export function OrderSummary({ order }: OrderSummaryProps) {
 					<div className="flex items-baseline justify-between gap-3">
 						<dt className="text-fg-secondary">Points redeemed</dt>
 						<dd className="text-fg tabular-nums">
-							{formatOrderValue({ ...order, cashAmount: 0 })}
+							{order.points !== null ? formatPoints(order.points) : "None"}
 						</dd>
 					</div>
 					<div className="flex items-baseline justify-between gap-3">
 						<dt className="text-fg-secondary">Cash paid</dt>
 						<dd className="text-fg tabular-nums">
-							{order.cashAmount > 0 ? formatRs(order.cashAmount) : "None"}
+							{order.amount !== null && order.amount > 0 ? formatRs(order.amount) : "None"}
 						</dd>
 					</div>
 					<div className="flex items-baseline justify-between gap-3 border-t border-border pt-2">
@@ -62,48 +62,24 @@ export function OrderSummary({ order }: OrderSummaryProps) {
 	);
 }
 
-function DealRow({
-	item,
-	category,
-	price,
-}: {
-	item: OrderItem;
-	category: string;
-	/** Deal price, shown only when the order has a single deal (the total is per order). */
-	price: string | null;
-}) {
+function ItemRow({ item }: { item: OrderItem }) {
 	return (
 		<li className="flex gap-4 p-4">
-			<div className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-soft bg-fill1">
-				{item.imageUrl ? (
-					// Deal photos are remote Fonepoints assets; a plain img avoids image-optimiser config.
-					// eslint-disable-next-line @next/next/no-img-element
-					<img src={item.imageUrl} alt="" className="size-full object-contain" loading="lazy" />
-				) : (
-					<Package className="size-6 text-fg-tertiary" aria-hidden />
-				)}
+			<div className="flex size-14 shrink-0 items-center justify-center rounded-lg border border-soft bg-fill1">
+				<Package className="size-6 text-fg-tertiary" aria-hidden />
 			</div>
 			<div className="flex min-w-0 flex-1 flex-col gap-1.5">
 				<p className="line-clamp-2 text-sm font-medium text-fg">{item.name}</p>
 				<div className="flex flex-wrap items-center gap-2 text-xs text-fg-secondary">
 					<Badge variant="soft" color="neutral" size="20">
-						{category}
+						{PRODUCT_TYPE_LABELS[item.productType]}
 					</Badge>
-					<span className="tabular-nums">Qty {item.quantity}</span>
+					<span className="tabular-nums">
+						Qty {item.quantity}
+						{item.unitName && ` ${item.unitName}`}
+					</span>
+					{item.productId && <span className="tabular-nums">{item.productId}</span>}
 				</div>
-				{(price || item.marketPrice) && (
-					<div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-						{price && <span className="text-sm font-semibold text-fg tabular-nums">{price}</span>}
-						{item.marketPrice && (
-							<span className="text-xs text-fg-secondary">
-								Market price{" "}
-								<span className="text-fg-tertiary tabular-nums line-through">
-									{formatRs(item.marketPrice)}
-								</span>
-							</span>
-						)}
-					</div>
-				)}
 			</div>
 		</li>
 	);

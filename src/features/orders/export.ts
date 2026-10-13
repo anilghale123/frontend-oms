@@ -1,30 +1,21 @@
-import { ORDER_CATEGORY_LABELS, ORDER_STATUS_LABELS, type Order } from "@/lib/domain";
-import { formatDate, formatDateTime } from "@/lib/utils";
+import { ORDER_STATUS_LABELS, type Order } from "@/lib/domain";
 import { type ExportTable, exportTable } from "@/lib/utils/export";
 
 /** Field/value sheet for one order, plus its line items. */
 export function orderToExport(order: Order): ExportTable {
 	const rows: [string, string | number][] = [
 		["OMS Order ID", order.omsOrderId],
-		["Sales Order ID", order.salesOrderId],
-		["Fonepoints reference", order.fonepointsReferenceId],
+		["Partner order ID", order.referenceId],
 		["Status", ORDER_STATUS_LABELS[order.status]],
-		["Customer", order.customerName],
-		["Email", order.customerEmail],
-		["Phone", order.customerPhone],
-		["Customer location", order.customerLocation],
-		["Category", ORDER_CATEGORY_LABELS[order.category]],
-		["Points", order.orderValue],
-		["Cash (Rs)", order.cashAmount],
+		["Customer", order.customer.name],
+		["Phone", order.customer.contact],
+		["Customer ID", order.customer.identifier],
+		["Delivery address", order.customer.deliveryAddress],
+		["Points", order.points ?? ""],
+		["Cash (Rs)", order.amount ?? ""],
 		["Value type", order.valueType === "points" ? "Points" : "Points + cash"],
-		["Delivery name", order.delivery.name],
-		["Delivery phone", order.delivery.phone],
-		["Delivery location", order.delivery.address],
-		["Delivery date", formatDate(order.deliveryDate)],
-		["Note", order.delivery.note],
-		["Remarks", order.delivery.remarks],
-		["Created", formatDateTime(order.createdAt)],
-		["Rider", order.rider ? `${order.rider.name} (${order.rider.vehicleNumber})` : ""],
+		["Created", order.created],
+		["Rider", order.rider?.name ?? ""],
 		["Rider phone", order.rider?.phone ?? ""],
 	];
 	order.items.forEach((item, index) => {

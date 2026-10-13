@@ -10,7 +10,7 @@ export interface PageProps extends Omit<PageHeaderProps, "className"> {
 
 /**
  * Outer frame of every screen: PageHeader then body.
- * Padding lives on AppShell so pages don't double-pad against the Meat layout.
+ * Padding lives on the surface layout (the embed layout, `MobileShell`) so pages never double-pad.
  * Take `title` from the route in the nav config, never a string typed into the page.
  */
 export function Page({ children, className, ...header }: PageProps) {

@@ -12,16 +12,18 @@ export interface SessionGateProps {
 /**
  * Holds a surface back until there is an OMS session.
  *
- * The screens underneath assume a merchant: the sidebar shows their company, and every order
- * request is scoped by their token. Rendering them first and letting each one fail would mean a
- * flash of empty chrome followed by a row of error states — so the session is settled once, here.
+ * The screens underneath assume a merchant: every order request is scoped by their token.
+ * Rendering them first and letting each one fail would mean a row of error states — so the
+ * session is settled once, here.
  *
  * Three states, and the distinction between the last two is the useful part:
  *
  * - **loading** — a spinner. Normally one round trip to `/api/session`, which the cookie answers.
- * - **unauthenticated with a reason** — something went wrong and it is worth explaining: a
- *   rejected token, an ended portal session, an unreachable backend. Offers a retry, because most
- *   of these are transient.
+ *   It also covers the handshake when there is no session, or Sales refused the token: OMS has
+ *   asked the portal for a token and is waiting for it.
+ * - **unauthenticated with a reason** — something went wrong and it is worth explaining: a token
+ *   refused straight after it was handed over, an ended portal session, an unreachable backend.
+ *   Offers a retry, because most of these are transient.
  * - **unauthenticated because OMS was opened directly** — not an error at all. OMS is a surface of
  *   the Fonepoints Business portal, so the answer is where to open it from, not a retry.
  *

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { CalendarDays, ChevronDown } from "lucide-react";
 import type { DateRange } from "react-day-picker";
-import { endOfDay, format, isSameDay, parseISO, startOfDay, subDays } from "date-fns";
+import { endOfDay, format, isSameDay, parse, startOfDay, subDays } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Divider } from "@/components/ui/divider";
@@ -55,7 +55,9 @@ export function filterOrdersByDate(orders: Order[], range: OrderDateRange): Orde
 	const start = interval.start.getTime();
 	const end = interval.end.getTime();
 	return orders.filter((order) => {
-		const created = parseISO(order.createdAt).getTime();
+		// "2026-10-09 14:32", Nepal time as the server formatted it. (Unused while the filter is
+		// hidden: the API has no date parameter, and filtering one page would miss the rest.)
+		const created = parse(order.created, "yyyy-MM-dd HH:mm", new Date()).getTime();
 		return created >= start && created <= end;
 	});
 }

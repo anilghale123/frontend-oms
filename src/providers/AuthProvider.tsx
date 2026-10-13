@@ -9,30 +9,42 @@ import {
 	useState,
 	type ReactNode,
 } from "react";
-import { rememberToken, type MerchantProfile } from "@/lib/auth";
+import { SESSION_EXPIRED_MESSAGE, forgetToken, onSessionExpired, rememberToken } from "@/lib/auth";
+import type { GrantReason } from "@/lib/host";
 import { useHostChannel } from "./HostChannelProvider";
 
 /**
  * The OMS session: how it is obtained, and what the screens see of it.
  *
- * There are two ways in, and they differ only in who produces the token:
+ * The token is a merchant access token issued by Providhy IAM. It does not expire. It arrives one
+ * way only: the Fonepoints portal frames OMS at `/embed/*` and posts it as `host.auth.grant` — and
+ * only when OMS asks for one with `oms.auth.renew`. There is no other way in: no token on the URL,
+ * no development sign-in. Opening OMS outside the portal shows where to open it from instead.
  *
- * **Embedded (`source="host"`).** The merchant pressed OMS in the Fonepoints portal. The portal
- * asked its own backend, which presented the company API key to the OMS backend and got an access
- * token; the portal posts that token into this frame as `host.auth.grant`. We hand it to
- * `/api/session`, which verifies it upstream and puts it in an httpOnly cookie.
+ * `/api/session` stores the token in a persistent httpOnly cookie (without calling Sales), and
+ * every later request goes through `/api/oms/*`.
  *
- * **Standalone (`source="standalone"`).** There is no host. `/api/session/dev` mints a token
- * server-side — development only — so the order screens can be worked on without running the
- * portal and its backend.
+ * **The cookie is tried first, always, and it decides whether a handshake happens at all.** The
+ * token does not expire, so the cookie is the reference: checking it is a cookie read, with no call
+ * to Sales. A token Sales does not accept is caught by the first data request. The portal cannot
+ * see this cookie (it is HttpOnly and belongs to another site), so every time it opens OMS it waits
+ * for OMS to say which case it is in:
  *
- * Both paths end in the same place: a cookie, and every later request going through `/api/oms/*`.
- * That is deliberate. The dev path is not a second authentication system; it replaces only the
- * question of who asked for the token.
+ * - a cookie → `oms.auth.ok { session: "existing" }`. No token is requested.
+ * - no cookie → `oms.auth.renew { reason: "missing" }`. The portal asks its backend for a token
+ *   and hands it over. The portal keeps no token of its own.
  *
- * **The cookie is tried first, always.** It is what makes a reload inside the iframe free — the
- * session is already proven, and nothing needs to be said to the host. Only when there is no valid
- * cookie does the handoff run.
+ * One request at a time: while OMS is waiting for a grant it does not ask again, and it ignores a
+ * grant or denial it did not ask for.
+ *
+ * **A refused token is replaced when it can be.** Any `401` from the API — a token revoked or
+ * replaced on the Sales side — raises `onSessionExpired`; the proxy has already cleared the cookie.
+ * OMS asks the portal again with `reason: "rejected"`, which gets a new token from its backend. A
+ * token refused within a minute of being handed over is a bad token, so OMS stops and says so
+ * instead of asking again in a loop. Either way every query stops while it happens.
+ *
+ * The cookie ends only with portal sign-out (`/embed-signout`), a refused token, or the merchant
+ * clearing site data.
  */
 
 export type AuthStatus = "loading" | "authenticated" | "unauthenticated";
@@ -40,14 +52,29 @@ export type AuthStatus = "loading" | "authenticated" | "unauthenticated";
 /**
  * Why there is no session, as a kind rather than as prose.
  *
- * The gate shows `direct-visit` quite differently from the rest — it is guidance, not an error, and
- * gets no retry — so it has to be able to tell them apart without matching on the message text.
+ * The gate shows each differently without matching on the message text: `direct-visit` is
+ * guidance (where to open OMS from) and gets no retry — retrying changes nothing. `failure` is
+ * everything worth retrying.
  */
 export type AuthFailureKind = "direct-visit" | "failure";
 
+/**
+ * A token refused sooner than this after it was handed over is not renewed automatically. A token
+ * the portal just fetched and Sales already refuses has not been revoked; something else is wrong,
+ * and asking the portal again would most likely bring back the same token.
+ */
+const RENEW_COOLDOWN_MS = 60_000;
+
+/** `{ error: { message } }` from this app's session route, when the body has one. */
+async function errorMessage(res: Response): Promise<string | undefined> {
+	const body = (await res.json().catch(() => null)) as {
+		error?: { message?: string };
+	} | null;
+	return body?.error?.message;
+}
+
 export interface AuthState {
 	status: AuthStatus;
-	merchant: MerchantProfile | null;
 	/** Why the session could not be established, in words, for the gate to show. */
 	reason: string | null;
 	/** Which kind of failure it is, so the gate does not have to read `reason`. */
@@ -60,29 +87,37 @@ const AuthContext = createContext<AuthState | null>(null);
 
 export interface AuthProviderProps {
 	children: ReactNode;
-	/** `host` on `/embed/*`, where the portal supplies the token. `standalone` everywhere else. */
-	source: "host" | "standalone";
 }
 
-export function AuthProvider({ children, source }: AuthProviderProps) {
+export function AuthProvider({ children }: AuthProviderProps) {
 	const channel = useHostChannel();
 	const [status, setStatus] = useState<AuthStatus>("loading");
-	const [merchant, setMerchant] = useState<MerchantProfile | null>(null);
 	const [reason, setReason] = useState<string | null>(null);
 	const [reasonKind, setReasonKind] = useState<AuthFailureKind | null>(null);
 	const [attempt, setAttempt] = useState(0);
 
 	/**
-	 * Guards against a second exchange for one page view.
-	 *
-	 * The host re-answers `oms.ready` after every reload and may send `host.auth.grant` more than
-	 * once — it is cheap for it to do so, and the protocol says it must re-answer. Without this,
-	 * each arrival would re-POST the session.
+	 * Guards against a second exchange for one page view, and makes Strict Mode's second boot a
+	 * no-op while the first one's exchange is still in flight.
 	 */
 	const exchanging = useRef(false);
 
+	/**
+	 * True from the moment OMS sends `oms.auth.renew` until the portal answers.
+	 *
+	 * Two jobs. It keeps the handshake to one at a time: a second reason to ask (another `401`, a
+	 * Strict Mode re-run) while one is in flight does not send a second request. And it is the only
+	 * time a grant or a denial is acted on — OMS uses a token it asked for, not one that arrives
+	 * while its own session is fine.
+	 */
+	const awaitingGrant = useRef(false);
+
+	/** When the portal last handed over a token that was stored. Zero for a cookie session. */
+	const signedInAt = useRef(0);
+
 	const retry = useCallback(() => {
 		exchanging.current = false;
+		awaitingGrant.current = false;
 		setStatus("loading");
 		setReason(null);
 		setReasonKind(null);
@@ -97,14 +132,15 @@ export function AuthProvider({ children, source }: AuthProviderProps) {
 	}, []);
 
 	/**
-	 * Trades a token for the session cookie. Shared by both sources.
+	 * Trades a token for the session cookie.
 	 *
-	 * Returns the merchant rather than a boolean, so the caller can name them when it reports back
-	 * to the portal — reading it off `merchant` state instead would race the re-render.
+	 * `/api/session` stores the token as given — it does not call Sales — so a token Sales does not
+	 * accept shows up on the first data request instead (see the expiry handler). Resolves to whether
+	 * the cookie was set.
 	 */
 	const exchange = useCallback(
-		async (token: string): Promise<MerchantProfile | null> => {
-			if (exchanging.current) return null;
+		async (token: string): Promise<boolean> => {
+			if (exchanging.current) return false;
 			exchanging.current = true;
 
 			// Held in memory as well as in the cookie, for a browser that refuses a partitioned
@@ -120,23 +156,44 @@ export function AuthProvider({ children, source }: AuthProviderProps) {
 
 				if (!res.ok) {
 					exchanging.current = false;
-					fail("failure", "The access token was rejected. Reopen OMS from the portal.");
-					return null;
+					forgetToken();
+					fail("failure", (await errorMessage(res)) || "Couldn't start the OMS session.");
+					return false;
 				}
 
-				const body = (await res.json()) as { merchant: MerchantProfile };
-				setMerchant(body.merchant);
+				// Counted from a fresh trade only: a token refused soon after this is a bad token,
+				// not a revoked one, and must not be asked for again in a loop.
+				signedInAt.current = Date.now();
 				setReason(null);
 				setReasonKind(null);
 				setStatus("authenticated");
-				return body.merchant;
+				return true;
 			} catch {
 				exchanging.current = false;
+				forgetToken();
 				fail("failure", "Couldn't reach OMS to start the session.");
-				return null;
+				return false;
 			}
 		},
 		[fail],
+	);
+
+	/**
+	 * Asks the portal for a token: the start of a handshake, and the only thing that starts one.
+	 *
+	 * Called when the cookie check finds no session, and when Sales refuses the token mid-visit.
+	 * The surface shows "Opening OMS…" meanwhile, which also unmounts every query.
+	 */
+	const requestGrant = useCallback(
+		(why: GrantReason) => {
+			setReason(null);
+			setReasonKind(null);
+			setStatus("loading");
+			if (awaitingGrant.current) return;
+			awaitingGrant.current = true;
+			channel?.send({ type: "oms.auth.renew", reason: why });
+		},
+		[channel],
 	);
 
 	/*
@@ -146,29 +203,35 @@ export function AuthProvider({ children, source }: AuthProviderProps) {
 	 * parent ones — so the portal's answer cannot arrive before we are listening.
 	 */
 	useEffect(() => {
-		if (source !== "host" || !channel?.embedded) return;
+		if (!channel?.embedded) return;
 
 		const offGrant = channel.on("host.auth.grant", ({ token }) => {
+			// Only the answer to our own `oms.auth.renew`. A grant that arrives while the session is
+			// fine is dropped, which is what keeps a valid session from being replaced.
+			if (!awaitingGrant.current) return;
 			if (typeof token !== "string" || !token) return;
+			awaitingGrant.current = false;
 
-			void exchange(token).then((merchant) => {
+			void exchange(token).then((stored) => {
 				// Reported back so the portal can show the connection state, and so a failure is
-				// visible there rather than only inside a frame nobody is looking at. The merchant
-				// id goes with it, which is how the portal can tell that OMS opened as the merchant
-				// the portal thinks it signed in.
+				// visible there rather than only inside a frame nobody is looking at.
 				channel.send(
-					merchant
-						? { type: "oms.auth.ok", merchantId: merchant.merchantId }
+					stored
+						? { type: "oms.auth.ok", session: "new" }
 						: { type: "oms.auth.failed", reason: "exchange_failed" },
 				);
 			});
 		});
 
 		const offDenied = channel.on("host.auth.denied", ({ reason: denied }) => {
+			// A denial matters only while OMS is waiting for a token. One that arrives while the
+			// session is fine must not sign the merchant out.
+			if (!awaitingGrant.current) return;
+			awaitingGrant.current = false;
 			exchanging.current = false;
-			// Three distinct causes, and conflating them sends people to the wrong fix: an ended
-			// portal session needs a sign-in, a failed token request is usually the Fonepoints
-			// backend being down or holding the wrong API key, and anything else is the account.
+			// Distinct causes, and conflating them sends people to the wrong fix: an ended portal
+			// session needs a sign-in; a failed token request is usually the Fonepoints backend
+			// being down or IAM refusing its key.
 			if (denied === "no_session") {
 				fail("failure", "Your Fonepoints session has ended. Sign in to the portal again.");
 			} else if (denied === "token_request_failed") {
@@ -182,77 +245,68 @@ export function AuthProvider({ children, source }: AuthProviderProps) {
 			offGrant();
 			offDenied();
 		};
-	}, [channel, exchange, fail, source]);
+	}, [channel, exchange, fail]);
+
+	/*
+	 * A refused token. The fetch client raises it on any 401; the gate then replaces the surface,
+	 * which unmounts every query — the "stop calling the API" half of `src/api.md`'s instruction.
+	 *
+	 * The portal can hand over a new token, so a refused one (revoked or replaced) is replaced
+	 * rather than left as a dead end. Several queries usually fail together; `requestGrant` asks
+	 * once.
+	 */
+	useEffect(() => {
+		return onSessionExpired(() => {
+			exchanging.current = false;
+
+			// A token handed over less than a minute ago and already refused is a bad token, not a
+			// revoked one. Asking again would most likely bring back the same token, so stop, in the
+			// guide's words for a refused token (`src/api.md`).
+			if (Date.now() - signedInAt.current < RENEW_COOLDOWN_MS) {
+				fail("failure", SESSION_EXPIRED_MESSAGE);
+				return;
+			}
+			requestGrant("rejected");
+		});
+	}, [channel, fail, requestGrant]);
 
 	/* Boot. */
 	useEffect(() => {
 		let cancelled = false;
 
 		async function boot() {
-			// 1. The cookie, if there is one. A valid session here means nothing else has to
-			//    happen — this is the reload path, and the common one.
+			// 0. OMS is embedded only. Outside the portal's frame there is no host to ask for a token,
+			//    and even a cookie from an earlier visit is not a way in: OMS opens from the portal.
+			//    (On localhost the portal and OMS are one site, so the cookie is visible here too.)
+			if (!channel?.embedded) {
+				fail("direct-visit", "Open OMS from the Fonepoints Business portal.");
+				return;
+			}
+
+			// 1. The cookie, if there is one. A session here means nothing else has to happen — this
+			//    is the common path: the merchant opening OMS again, a reload, or a new browser
+			//    session (the cookie is persistent). The route only checks the cookie is there; it
+			//    does not call Sales. A token Sales no longer accepts is caught by the first data
+			//    request, whose 401 starts a new handshake.
 			try {
 				const res = await fetch("/api/session", { cache: "no-store" });
 				if (cancelled) return;
 				if (res.ok) {
-					const body = (await res.json()) as { merchant: MerchantProfile };
-					setMerchant(body.merchant);
 					setStatus("authenticated");
+					// The portal is waiting to hear this before it does anything about a token.
+					// An existing session means no handshake at all.
+					channel.send({ type: "oms.auth.ok", session: "existing" });
 					return;
 				}
+				// 401 `no_session`: fall through and ask the portal.
 			} catch {
 				// No session yet is the normal first visit, not an error. Fall through.
 			}
 			if (cancelled) return;
 
-			// 2. No cookie. Where a token comes from depends on the surface.
-			if (source === "host") {
-				if (!channel?.embedded) {
-					// `/embed/*` opened outside a frame, usually from a pasted URL. There is no
-					// host to ask, and saying so is more useful than a spinner that never ends.
-					fail("direct-visit", "Open OMS from the Fonepoints Business portal.");
-					return;
-				}
-
-				// Framed with no session: ask for one. The host also answers `oms.ready` with a
-				// grant, so this is the belt to that braces — it covers a session revoked
-				// mid-visit, where `oms.ready` has already been answered for this frame.
-				channel.send({ type: "oms.auth.renew" });
-				return; // The grant listener takes it from here.
-			}
-
-			// Standalone: mint one locally. Only `AUTH_MODE=dev` allows it; anything else answers
-			// 404, which becomes the "open it from the portal" message below.
-			try {
-				const res = await fetch("/api/session/dev", { method: "POST" });
-				if (cancelled) return;
-
-				if (res.ok) {
-					const body = (await res.json()) as {
-						merchant: MerchantProfile;
-						accessToken?: string;
-					};
-					if (body.accessToken) rememberToken(body.accessToken);
-					setMerchant(body.merchant);
-					setStatus("authenticated");
-					return;
-				}
-
-				const body = (await res.json().catch(() => null)) as {
-					error?: { code?: string; message?: string };
-				} | null;
-
-				// `disabled` is production answering: the development mint is off, so the only way
-				// in is the portal. Not a failure, so it is not shown as one.
-				if (body?.error?.code === "disabled") {
-					fail("direct-visit", "Open OMS from the Fonepoints Business portal.");
-				} else {
-					fail("failure", body?.error?.message || "Couldn't start an OMS session.");
-				}
-			} catch {
-				if (cancelled) return;
-				fail("failure", "Couldn't reach OMS to start the session.");
-			}
+			// 2. No session: ask the portal for a token.
+			requestGrant("missing");
+			// The grant listener takes it from here.
 		}
 
 		void boot();
@@ -260,10 +314,10 @@ export function AuthProvider({ children, source }: AuthProviderProps) {
 			cancelled = true;
 		};
 		// `attempt` is what the retry button changes, and the only reason to boot twice.
-	}, [attempt, channel, fail, source]);
+	}, [attempt, channel, fail, requestGrant]);
 
 	return (
-		<AuthContext.Provider value={{ status, merchant, reason, reasonKind, retry }}>
+		<AuthContext.Provider value={{ status, reason, reasonKind, retry }}>
 			{children}
 		</AuthContext.Provider>
 	);
@@ -276,9 +330,4 @@ export function useAuth(): AuthState {
 		throw new Error("useAuth must be used inside an AuthProvider");
 	}
 	return value;
-}
-
-/** The signed-in merchant, or `null` while the session is still being established. */
-export function useMerchant(): MerchantProfile | null {
-	return useAuth().merchant;
 }

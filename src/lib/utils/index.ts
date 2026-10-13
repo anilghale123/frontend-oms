@@ -10,6 +10,7 @@ export {
 	formatDateTime,
 	formatOrderValue,
 	formatPhone,
+	formatPoints,
 	formatRs,
 	initialsOf,
 } from "./format";

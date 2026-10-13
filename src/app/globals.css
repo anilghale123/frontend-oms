@@ -6,14 +6,23 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-	/* primary — Meat violet-blue default until appearance remaps via data-theme */
-	--color-primary: oklch(0.528 0.2539 282.58);
-	--color-primary-fg: oklch(0.9764 0.0013 286.38);
-	--color-primary-accent: oklch(0.94 0.0271 295.05);
-	--color-primary-focus: oklch(0.9169 0.0383 295.46);
-	--color-primary-border: oklch(0.6784 0.1708 290.38);
-	--color-primary-hover: oklch(0.5768 0.2279 286.25);
-	--color-primary-text: oklch(0.528 0.2539 282.58);
+	/* primary — Fonepoints orange by default; appearance remaps it via data-theme */
+	--color-primary: var(--color-fonepoints-orange);
+	--color-primary-fg: var(--color-fonepoints-orange-fg);
+	--color-primary-accent: var(--color-fonepoints-orange-accent);
+	--color-primary-focus: var(--color-fonepoints-orange-focus);
+	--color-primary-border: var(--color-fonepoints-orange-border);
+	--color-primary-hover: var(--color-fonepoints-orange-hover);
+	--color-primary-text: var(--color-fonepoints-orange-text);
+
+	/* fonepoints-orange — accent scale from the Fonepoints team's Brand orange */
+	--color-fonepoints-orange: oklch(0.705 0.197 46.27); /* Brand 500 #FE6E00 */
+	--color-fonepoints-orange-fg: oklch(1 0 0);
+	--color-fonepoints-orange-accent: oklch(0.966 0.021 60.75); /* Brand 50 #FFF1E6 */
+	--color-fonepoints-orange-focus: oklch(0.931 0.043 59.4); /* Brand 100 #FFE2CC */
+	--color-fonepoints-orange-border: oklch(0.803 0.131 57.02); /* Brand 300 #FEA866 */
+	--color-fonepoints-orange-hover: oklch(0.749 0.169 53.26); /* Brand 400 #FE8B33 */
+	--color-fonepoints-orange-text: oklch(0.485 0.132 48.12); /* Brand 700 #984200 */
 
 	/* Fonepoints brand red (#D12427) — logo and the opt-in Fonepoints accent theme, never status */
 	--color-brand: oklch(0.5559 0.2064 26.62);
@@ -98,8 +107,8 @@
 	--color-fill3-alpha: color-mix(in srgb, oklch(0.302 0.038 263.737), transparent 88%);
 	--color-fill4-alpha: color-mix(in srgb, oklch(0.302 0.038 263.737), transparent 84%);
 
-	--font-heading: var(--font-geist-sans), system-ui, sans-serif;
-	--font-body: var(--font-geist-sans), system-ui, sans-serif;
+	--font-heading: var(--font-nunito), system-ui, sans-serif;
+	--font-body: var(--font-nunito), system-ui, sans-serif;
 
 	--color-card: var(--color-elevation-level1);
 
@@ -116,13 +125,22 @@
 
 .dark {
 	/* primary */
-	--color-primary: oklch(0.528 0.2539 282.58);
-	--color-primary-fg: oklch(0.9764 0.0013 286.38);
-	--color-primary-accent: oklch(0.2622 0.0915 289.13);
-	--color-primary-focus: oklch(0.2827 0.1227 284.67);
-	--color-primary-border: oklch(0.528 0.2539 282.58);
-	--color-primary-hover: oklch(0.5768 0.2279 286.25);
-	--color-primary-text: oklch(0.6784 0.1708 290.38);
+	--color-primary: var(--color-fonepoints-orange);
+	--color-primary-fg: var(--color-fonepoints-orange-fg);
+	--color-primary-accent: var(--color-fonepoints-orange-accent);
+	--color-primary-focus: var(--color-fonepoints-orange-focus);
+	--color-primary-border: var(--color-fonepoints-orange-border);
+	--color-primary-hover: var(--color-fonepoints-orange-hover);
+	--color-primary-text: var(--color-fonepoints-orange-text);
+
+	/* fonepoints-orange — the design team supplied light steps only. These follow the Radian
+	   orange dark pattern (dark tint, deeper focus, Brand 700 border, Brand 300 text) on the
+	   brand hue; confirm with the design team. */
+	--color-fonepoints-orange-accent: oklch(0.27 0.045 52);
+	--color-fonepoints-orange-focus: oklch(0.335 0.07 50);
+	--color-fonepoints-orange-border: oklch(0.485 0.132 48.12); /* Brand 700 #984200 */
+	--color-fonepoints-orange-hover: oklch(0.749 0.169 53.26); /* Brand 400 #FE8B33 */
+	--color-fonepoints-orange-text: oklch(0.803 0.131 57.02); /* Brand 300 #FEA866 */
 
 	/* fonepoints */
 	--color-fonepoints-accent: oklch(0.255 0.065 24);
@@ -357,6 +375,15 @@
 }
 
 /* Appearance accent: remap primary to a design-system color. */
+html[data-theme="fonepoints-orange"] {
+	--color-primary: var(--color-fonepoints-orange);
+	--color-primary-fg: var(--color-fonepoints-orange-fg);
+	--color-primary-accent: var(--color-fonepoints-orange-accent);
+	--color-primary-focus: var(--color-fonepoints-orange-focus);
+	--color-primary-border: var(--color-fonepoints-orange-border);
+	--color-primary-hover: var(--color-fonepoints-orange-hover);
+	--color-primary-text: var(--color-fonepoints-orange-text);
+}
 html[data-theme="gray"] {
 	--color-primary: var(--color-neutral);
 	--color-primary-fg: var(--color-neutral-fg);
@@ -527,6 +554,12 @@ html[data-theme="rose"] {
 	--color-primary-border: var(--color-rose-border);
 	--color-primary-hover: var(--color-rose-hover);
 	--color-primary-text: var(--color-rose-text);
+}
+
+html[data-font="geist"] {
+	--font-body: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+	--font-heading: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+	font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
 html[data-font="inter"] {

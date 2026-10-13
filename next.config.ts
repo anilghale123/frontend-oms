@@ -29,8 +29,16 @@ const nextConfig: NextConfig = {
 		return [
 			{
 				// Only the embedded surface is framable. Everything else stays same-origin only,
-				// so the standalone dashboard and the rider portal cannot be clickjacked.
+				// so the rider portal and the landing page cannot be clickjacked.
 				source: "/embed/:path*",
+				headers: [
+					{ key: "Content-Security-Policy", value: `frame-ancestors ${frameAncestors};` },
+				],
+			},
+			{
+				// The portal loads this in a hidden iframe at sign-out to delete OMS's cookies, so
+				// it is framable by the same origins as `/embed/*`.
+				source: "/embed-signout",
 				headers: [
 					{ key: "Content-Security-Policy", value: `frame-ancestors ${frameAncestors};` },
 				],

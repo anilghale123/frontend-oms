@@ -14,5 +14,9 @@ export {
 export { DataTableView, type DataTableViewProps } from "./data-table-view";
 export { DataTableViewOptions, type DataTableViewOptionsProps } from "./data-table-view-options";
 export { tableToExport } from "./table-export";
-export { useDataTable, type UseDataTableOptions } from "./use-data-table";
+export {
+	useDataTable,
+	type DataTableServerOptions,
+	type UseDataTableOptions,
+} from "./use-data-table";
 export { dataTableFullscreenClassName, useDataTableFullscreen } from "./use-data-table-fullscreen";

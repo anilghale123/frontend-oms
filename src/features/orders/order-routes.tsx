@@ -5,14 +5,9 @@ import { createContext, useContext, useMemo, type ReactNode } from "react";
 /**
  * Where the order screens live in the URL.
  *
- * OMS is served two ways:
- * - **standalone** at `/orders` (its own sidebar and header), and
- * - **embedded** at `/embed/orders`, inside the Fonepoints Business portal's iframe, where the
- *   host supplies the chrome and OMS renders only its content.
- *
- * Both serve the same feature components, so the components must not hard-code `/orders`.
- * They read their links from here instead. The default base is `""`, so standalone URLs are
- * exactly what they were before embedding existed.
+ * They are served at `/embed/orders`, inside the Fonepoints Business portal's iframe. The prefix
+ * is provided by the embed layout rather than hard-coded in the components, so the components
+ * stay free of URL decisions and a second surface could reuse them.
  */
 const OrderBasePathContext = createContext<string>("");
 
@@ -29,23 +24,18 @@ export function OrderRoutesProvider({ basePath, children }: OrderRoutesProviderP
 export interface OrderRoutes {
 	/** The order queue. */
 	queue: string;
-	/** One order's detail page. */
-	detail: (omsOrderId: string) => string;
+	/** One order's detail page, by the partner's `reference_id`. */
+	detail: (referenceId: string) => string;
 }
 
-/** Links to the order screens, correct for whichever way OMS is currently served. */
+/** Links to the order screens. */
 export function useOrderRoutes(): OrderRoutes {
 	const basePath = useContext(OrderBasePathContext);
 	return useMemo(
 		() => ({
 			queue: `${basePath}/orders`,
-			detail: (omsOrderId: string) => `${basePath}/orders/${encodeURIComponent(omsOrderId)}`,
+			detail: (referenceId: string) => `${basePath}/orders/${encodeURIComponent(referenceId)}`,
 		}),
 		[basePath],
 	);
-}
-
-/** True when OMS is rendering inside the host portal rather than as its own dashboard. */
-export function useIsEmbedded(): boolean {
-	return useContext(OrderBasePathContext) !== "";
 }

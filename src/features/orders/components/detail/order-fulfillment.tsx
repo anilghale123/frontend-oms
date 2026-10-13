@@ -1,32 +1,15 @@
 "use client";
 
 import type { ReactNode } from "react";
-import {
-	CircleCheck,
-	CircleX,
-	Package,
-	PackageCheck,
-	ShieldCheck,
-	Truck,
-	type LucideIcon,
-} from "lucide-react";
+import { CircleCheck, CircleX, Package, PackageCheck, Truck, type LucideIcon } from "lucide-react";
 import { Panel, PanelContent, PanelHeader, PanelHint, PanelTitle } from "@/components/layout";
 import {
 	ORDER_STATUS_LABELS,
 	ORDER_STATUS_SEQUENCE,
-	type ActivityLogEntry,
+	type OrderLog,
 	type OrderStatus,
 } from "@/lib/domain";
-import {
-	MOCK_MERCHANTS,
-	MOCK_ROLE_LABELS,
-	isMerchantRole,
-	type MockRole,
-} from "@/config/constants";
-import { useMerchant } from "@/providers/AuthProvider";
-import type { MerchantProfile } from "@/lib/auth";
-import { cn, formatDateTime } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import { StatusBadge } from "../status-badge";
 
 const STEP_ICONS: Record<OrderStatus, LucideIcon> = {
@@ -42,13 +25,13 @@ type StepState = "reached" | "current" | "upcoming";
 export interface FulfillmentStep {
 	status: OrderStatus;
 	state: StepState;
-	/** When the order entered this status, if the activity log records it. */
+	/** When the order entered this status, from the log; Nepal time as the server sent it. */
 	time: string | null;
 }
 
 export interface OrderProgressTrackerProps {
 	status: OrderStatus;
-	entries: ActivityLogEntry[];
+	logs: OrderLog[];
 	/** The merchant's next step, shown in a highlighted bar above the steps. */
 	nextStep?: FulfillmentNextStep;
 }
@@ -68,8 +51,8 @@ export interface FulfillmentNextStep {
  * Custom rather than Radian `Stepper`: its separator centres on the whole trigger, so it cannot
  * join the icon centres when labels sit under the icons.
  */
-export function OrderProgressTracker({ status, entries, nextStep }: OrderProgressTrackerProps) {
-	const steps = buildFulfillmentSteps(status, entries);
+export function OrderProgressTracker({ status, logs, nextStep }: OrderProgressTrackerProps) {
+	const steps = buildFulfillmentSteps(status, logs);
 
 	return (
 		<Panel flush>
@@ -137,13 +120,9 @@ export function OrderProgressTracker({ status, entries, nextStep }: OrderProgres
 										{step.state === "current" && <span className="sr-only"> (current step)</span>}
 									</p>
 								)}
-								{step.time ? (
-									<time dateTime={step.time} className="text-xs text-fg-tertiary tabular-nums">
-										{formatDateTime(step.time)}
-									</time>
-								) : (
-									<span className="text-xs text-fg-tertiary">{upcoming ? "Pending" : " "}</span>
-								)}
+								<span className="text-xs text-fg-tertiary tabular-nums">
+									{step.time ?? (upcoming ? "Pending" : " ")}
+								</span>
 							</li>
 						);
 					})}
@@ -154,25 +133,27 @@ export function OrderProgressTracker({ status, entries, nextStep }: OrderProgres
 }
 
 export interface OrderActivityListProps {
-	entries: ActivityLogEntry[];
+	/** The order's status timeline, oldest first, as the API sends it. */
+	logs: OrderLog[];
 }
 
-/** Activity section body: every log entry, oldest first, on a dotted rail. */
-export function OrderActivityList({ entries }: OrderActivityListProps) {
-	const merchant = useMerchant();
-	const sorted = [...entries].sort(
-		(a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
-	);
-
-	if (sorted.length === 0) {
+/**
+ * Activity section body: every status change on a dotted rail, oldest first — the status, the
+ * message the customer was shown, and when.
+ */
+export function OrderActivityList({ logs }: OrderActivityListProps) {
+	if (logs.length === 0) {
 		return <PanelHint>No activity recorded yet.</PanelHint>;
 	}
 
 	return (
 		<ol className="flex flex-col">
-			{sorted.map((entry, index) => (
-				<li key={entry.id} className="relative flex gap-3 pb-4 last:pb-0">
-					{index < sorted.length - 1 && (
+			{logs.map((log, index) => (
+				<li
+					key={`${log.status}-${log.date}-${index}`}
+					className="relative flex gap-3 pb-4 last:pb-0"
+				>
+					{index < logs.length - 1 && (
 						<span
 							aria-hidden
 							className="absolute top-4 bottom-0 left-1.5 w-px -translate-x-1/2 bg-border"
@@ -180,25 +161,12 @@ export function OrderActivityList({ entries }: OrderActivityListProps) {
 					)}
 					<span
 						aria-hidden
-						className={cn(
-							"relative z-10 mt-1 size-3 shrink-0 rounded-full",
-							isOverride(entry) ? "border-2 border-primary bg-bg" : "bg-primary",
-						)}
+						className="relative z-10 mt-1 size-3 shrink-0 rounded-full bg-primary"
 					/>
 					<div className="flex min-w-0 flex-1 flex-col gap-0.5">
-						<p className="text-sm text-fg">{activityMessage(entry)}</p>
-						{isOverride(entry) && (
-							<Badge variant="soft" color="neutral" size="20" className="w-fit">
-								<ShieldCheck aria-hidden />
-								CS override
-							</Badge>
-						)}
-						<p className="text-xs text-fg-tertiary">
-							{actorLabel(entry.actor, merchant)} ·{" "}
-							<time dateTime={entry.timestamp} className="tabular-nums">
-								{formatDateTime(entry.timestamp)}
-							</time>
-						</p>
+						<p className="text-sm font-medium text-fg">{ORDER_STATUS_LABELS[log.status]}</p>
+						{log.remarks && <p className="text-sm text-fg-secondary">{log.remarks}</p>}
+						<p className="text-xs text-fg-tertiary tabular-nums">{log.date}</p>
 					</div>
 				</li>
 			))}
@@ -206,53 +174,13 @@ export function OrderActivityList({ entries }: OrderActivityListProps) {
 	);
 }
 
-/** CS overrides are audited (PRD §10): actor, previous and new status, time, override flag. */
-function isOverride(entry: ActivityLogEntry): boolean {
-	return entry.type === "cs_override" || entry.metadata?.override === true;
-}
-
-/** Status-change messages carry raw status keys; show the status labels instead. */
-function activityMessage(entry: ActivityLogEntry): string {
-	const entered = enteredStatus(entry);
-	if (isOverride(entry) && entered) {
-		const previous = statusFromMetadata(entry.metadata?.previousStatus);
-		return previous
-			? `Status overridden from ${ORDER_STATUS_LABELS[previous]} to ${ORDER_STATUS_LABELS[entered]}`
-			: `Status overridden to ${ORDER_STATUS_LABELS[entered]}`;
-	}
-	if (entry.type === "status_changed" && entered) {
-		return `Status changed to ${ORDER_STATUS_LABELS[entered]}`;
-	}
-	return entry.message;
-}
-
-function statusFromMetadata(value: unknown): OrderStatus | null {
-	return typeof value === "string" && value in ORDER_STATUS_LABELS ? (value as OrderStatus) : null;
-}
-
-/** The status an entry moved the order into, when it records a status change. */
-function enteredStatus(entry: ActivityLogEntry): OrderStatus | null {
-	if (entry.type === "order_created") return "preparing";
-	if (entry.type !== "status_changed" && entry.type !== "cs_override") return null;
-	return statusFromMetadata(entry.metadata?.newStatus);
-}
-
 /**
  * Tracker steps: the status sequence with reached / current / upcoming states and the time each
  * step was entered. A failed order shows only the steps it is known to have reached, then Failed.
  */
-export function buildFulfillmentSteps(
-	status: OrderStatus,
-	entries: ActivityLogEntry[],
-): FulfillmentStep[] {
+export function buildFulfillmentSteps(status: OrderStatus, logs: OrderLog[]): FulfillmentStep[] {
 	const anchors = new Map<OrderStatus, string>();
-	const sorted = [...entries].sort(
-		(a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
-	);
-	for (const entry of sorted) {
-		const entered = enteredStatus(entry);
-		if (entered) anchors.set(entered, entry.timestamp);
-	}
+	for (const log of logs) anchors.set(log.status, log.date);
 
 	if (status === "failed") {
 		return [
@@ -271,18 +199,4 @@ export function buildFulfillmentSteps(
 		state: index < currentIndex ? "reached" : index === currentIndex ? "current" : "upcoming",
 		time: index <= currentIndex ? (anchors.get(step) ?? null) : null,
 	}));
-}
-
-/**
- * Who did it, in words: the merchant's company name, a role label, or "System" / "Rider".
- *
- * The signed-in merchant is resolved from the session first, so an entry this merchant wrote is
- * labelled with the company name the access token reports. `MOCK_MERCHANTS` stays underneath it
- * for the seeded history, which names merchants by id and predates any session.
- */
-function actorLabel(actor: string, merchant: MerchantProfile | null): string {
-	if (merchant && actor === merchant.merchantId) return merchant.companyName;
-	if (isMerchantRole(actor)) return MOCK_MERCHANTS[actor].companyName;
-	if (actor in MOCK_ROLE_LABELS) return MOCK_ROLE_LABELS[actor as MockRole];
-	return actor.charAt(0).toUpperCase() + actor.slice(1);
 }

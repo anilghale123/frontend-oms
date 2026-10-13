@@ -1,32 +1,30 @@
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import type { Order } from "@/lib/domain";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import type { OrderCustomer } from "@/lib/domain";
 import { cn, formatPhone, initialsOf } from "@/lib/utils";
 
 export interface CustomerCellProps {
-	order: Pick<Order, "customerName" | "customerEmail" | "customerPhone" | "customerAvatarUrl">;
+	customer: OrderCustomer;
 }
 
 /**
- * Customer avatar + name + phone (local 10 digits, no +977). Uses the Fonepoints photo when
- * there is one, otherwise initials. Customers without a name show their phone as the main line.
+ * Customer initials + name + phone (local 10 digits, no +977). Customers without a name show
+ * their phone as the main line.
  */
-export function CustomerCell({ order }: CustomerCellProps) {
-	const { customerName, customerEmail, customerPhone, customerAvatarUrl } = order;
-	const name = customerName.trim();
-	const phone = formatPhone(customerPhone);
+export function CustomerCell({ customer }: CustomerCellProps) {
+	const name = customer.name;
+	const phone = formatPhone(customer.contact);
 
 	return (
 		<div className="flex min-w-0 items-center gap-2.5">
 			<Avatar size="32">
-				{customerAvatarUrl && <AvatarImage src={customerAvatarUrl} alt="" />}
-				<AvatarFallback>{initialsOf(name, customerEmail)}</AvatarFallback>
+				<AvatarFallback>{initialsOf(name, customer.identifier)}</AvatarFallback>
 			</Avatar>
 			<div className="flex min-w-0 flex-col">
 				<span className={cn("truncate font-medium text-fg", !name && "tabular-nums")}>
-					{name || phone}
+					{name || phone || customer.identifier || "—"}
 				</span>
 				<span className={cn("truncate text-xs text-fg-secondary", name && "tabular-nums")}>
-					{name ? phone : "No name on file"}
+					{name ? phone || customer.identifier : "No name on file"}
 				</span>
 			</div>
 		</div>

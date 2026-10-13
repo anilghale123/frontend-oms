@@ -1,6 +1,6 @@
 /**
  * Generic route matching for nav configs. Route hrefs are Next-style patterns
- * ("/orders/[omsOrderId]"); matching is by path segment, so no route ever needs its own regex.
+ * ("/orders/[referenceId]"); matching is by path segment, so no route ever needs its own regex.
  * Pure TypeScript — no React, no Next.
  */
 
@@ -51,7 +51,7 @@ export function fillPattern(pattern: string, params: Record<string, string>): st
 
 /**
  * Finds the route whose pattern matches `pathname`. When several match, the one with the most
- * static segments wins (`/cs/orders/new` beats `/cs/orders/[omsOrderId]`).
+ * static segments wins (`/orders/new` beats `/orders/[referenceId]`).
  */
 export function matchRoute<R extends MatchableRoute>(
 	routes: readonly R[],

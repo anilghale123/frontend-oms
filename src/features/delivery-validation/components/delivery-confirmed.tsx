@@ -1,17 +1,24 @@
 import { CircleCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DetailField } from "@/features/orders";
-import type { DeliverySummary } from "@/lib/api/contracts";
-import { formatDateTime } from "@/lib/utils/format";
+import type { DeliveryResult } from "../api";
 
 export interface DeliveryConfirmedProps {
-	delivery: DeliverySummary;
+	/** The Order ID the rider typed. */
+	orderId: string;
+	result: DeliveryResult;
 	onReset: () => void;
 }
 
-/** Shown after a successful validation. This is the first point where the rider sees any order
- * details, and only these few. */
-export function DeliveryConfirmed({ delivery, onReset }: DeliveryConfirmedProps) {
+/**
+ * Shown after a confirmed delivery. This is the first point where the rider sees any order
+ * details, and only these few — when the server sends the order back at all.
+ */
+export function DeliveryConfirmed({ orderId, result, onReset }: DeliveryConfirmedProps) {
+	const { order, message } = result;
+	const item = order?.items[0];
+	const recipient = order?.customer.name;
+
 	return (
 		<div className="flex flex-col gap-6">
 			<div className="flex flex-col items-center gap-3 pt-4 text-center" role="status">
@@ -21,17 +28,14 @@ export function DeliveryConfirmed({ delivery, onReset }: DeliveryConfirmedProps)
 				<div className="flex flex-col gap-1">
 					<h2 className="text-lg font-semibold text-fg">Delivery confirmed</h2>
 					<p className="text-sm text-fg-secondary">
-						The voucher is redeemed and the order is marked delivered.
+						{message ?? "The voucher is redeemed and the order is marked delivered."}
 					</p>
 				</div>
 			</div>
 			<dl className="grid grid-cols-1 gap-3 rounded-xl border border-border p-4">
-				<DetailField label="OMS Order ID">{delivery.omsOrderId}</DetailField>
-				{delivery.itemName && <DetailField label="Item">{delivery.itemName}</DetailField>}
-				{delivery.recipientName && (
-					<DetailField label="Delivered to">{delivery.recipientName}</DetailField>
-				)}
-				<DetailField label="Confirmed at">{formatDateTime(delivery.deliveredAt)}</DetailField>
+				<DetailField label="Order ID">{order?.omsOrderId || orderId}</DetailField>
+				{item?.name && <DetailField label="Item">{item.name}</DetailField>}
+				{recipient && <DetailField label="Delivered to">{recipient}</DetailField>}
 			</dl>
 			<Button size="48" className="w-full" onClick={onReset}>
 				Confirm another delivery

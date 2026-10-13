@@ -1,11 +1,15 @@
 /**
  * Typed fetch client. Every screen talks to the OMS through this one module.
  *
- * Base URL comes from `@/config/env` (`NEXT_PUBLIC_OMS_API_BASE`, default `/api/oms`). That
- * default is this app's own proxy, not the OMS backend: the proxy reads the access token from an
- * httpOnly cookie on the server and attaches it, so no screen and no module in this folder ever
- * holds a credential. Pointing the variable at `/api/mock` still works and runs the whole app
- * against the in-repo mock with no backends at all.
+ * Two instances, one per surface:
+ *
+ * - `apiClient` — the merchant's order screens, through this app's `/api/oms` proxy
+ *   (`OMS_API_BASE`), not the Sales service directly: the proxy reads the access token from an
+ *   httpOnly cookie on the server and forwards to `{SALES_URL}api/oms/portal/`, so no screen and no
+ *   module in this folder ever holds a credential. A `401` announces that the token stopped
+ *   working (`@/lib/auth`); there is no refresh, and the fix is a new token from the portal.
+ * - `riderApiClient` — the rider portal, through `/api/rider` (`RIDER_API_BASE`). A rider has no
+ *   session, so this one sends no token and a `401` means nothing to the merchant's session.
  *
  * Failures are normalised into `ApiError { code, message, status }` by `./errors`, so callers get
  * one shape whichever envelope the backend used.
@@ -13,9 +17,21 @@
  * No React code in this folder.
  */
 
-import { OMS_API_BASE } from "@/config/env";
-import { readRememberedToken } from "@/lib/auth";
-import { ApiError, GENERIC_ERROR_MESSAGE, codeFromBody, messageFromBody } from "./errors";
+import { OMS_API_BASE, RIDER_API_BASE } from "@/config/constants";
+import {
+	SESSION_EXPIRED_MESSAGE,
+	forgetToken,
+	notifySessionExpired,
+	readRememberedToken,
+} from "@/lib/auth";
+import {
+	ApiError,
+	codeFromBody,
+	fieldErrorsFromBody,
+	messageForStatus,
+	messageFromBody,
+	parseRetryAfter,
+} from "./errors";
 
 /**
  * Authentication is a header this function does not normally send.
@@ -25,17 +41,23 @@ import { ApiError, GENERIC_ERROR_MESSAGE, codeFromBody, messageFromBody } from "
  * token, which happens when the browser refused the partitioned third-party cookie — the one case
  * where the iframe cannot rely on cookies at all. The proxy accepts either.
  */
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-	const fallbackToken = readRememberedToken();
+async function request<T>(
+	base: string,
+	session: boolean,
+	path: string,
+	init?: RequestInit,
+): Promise<T> {
+	const fallbackToken = session ? readRememberedToken() : null;
 
 	let res: Response;
 	try {
-		res = await fetch(`${OMS_API_BASE}${path}`, {
+		res = await fetch(`${base}${path}`, {
 			...init,
 			// Same-origin requests send cookies by default, but the embedded surface makes this
 			// worth stating: the session cookie is the credential, and nothing works without it.
 			credentials: "same-origin",
 			headers: {
+				Accept: "application/json",
 				"Content-Type": "application/json",
 				...(fallbackToken ? { "x-oms-token": fallbackToken } : {}),
 				...init?.headers,
@@ -49,12 +71,24 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 		});
 	}
 
+	// Missing, invalid or revoked token. There is no refresh endpoint, so retrying is pointless:
+	// drop the fallback copy and let the session gate ask the portal for a new one.
+	if (res.status === 401 && session) {
+		forgetToken();
+		notifySessionExpired();
+		throw new ApiError(SESSION_EXPIRED_MESSAGE, 401, "session_expired");
+	}
+
 	if (!res.ok) {
 		const body = await readBody(res);
 		throw new ApiError(
-			messageFromBody(body) ?? res.statusText ?? GENERIC_ERROR_MESSAGE,
+			messageFromBody(body) ?? messageForStatus(res.status),
 			res.status,
 			codeFromBody(body) ?? `http_${res.status}`,
+			{
+				fieldErrors: res.status === 400 ? fieldErrorsFromBody(body) : null,
+				retryAfter: parseRetryAfter(res.headers.get("Retry-After")),
+			},
 		);
 	}
 
@@ -70,16 +104,26 @@ async function readBody(res: Response): Promise<unknown> {
 	try {
 		return JSON.parse(text);
 	} catch {
-		return text;
+		// An HTML error page (a proxy, a debug 500) is not a message anyone should read.
+		return text.trimStart().startsWith("<") ? null : text;
 	}
 }
 
-export const apiClient = {
-	get: <T>(path: string, init?: RequestInit) => request<T>(path, init),
-	post: <T>(path: string, body?: unknown) =>
-		request<T>(path, { method: "POST", body: body ? JSON.stringify(body) : undefined }),
-	patch: <T>(path: string, body?: unknown) =>
-		request<T>(path, { method: "PATCH", body: body ? JSON.stringify(body) : undefined }),
-};
+function createClient(base: string, session: boolean) {
+	return {
+		get: <T>(path: string, init?: RequestInit) => request<T>(base, session, path, init),
+		post: <T>(path: string, body?: unknown) =>
+			request<T>(base, session, path, {
+				method: "POST",
+				body: body ? JSON.stringify(body) : undefined,
+			}),
+	};
+}
+
+/** The merchant's order screens, through the token-attaching `/api/oms` proxy. */
+export const apiClient = createClient(OMS_API_BASE, true);
+
+/** The rider portal, through `/api/rider`. No session, no token. */
+export const riderApiClient = createClient(RIDER_API_BASE, false);
 
 export { ApiError };

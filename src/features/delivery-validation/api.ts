@@ -1,21 +1,26 @@
-import { apiClient } from "@/lib/api/client";
-import type {
-	DevDeliveringOrderResponse,
-	DevVoucherResponse,
-	ValidateVoucherRequest,
-	ValidateVoucherResponse,
-} from "@/lib/api/contracts";
+import { riderApiClient } from "@/lib/api/client";
+import type { RiderDeliverRequest, RiderDeliverResponse } from "@/lib/api/contracts";
+import { API_ENDPOINTS } from "@/lib/api/endpoints";
+import { toOrder } from "@/lib/api/portal";
+import type { Order } from "@/lib/domain";
 
-export function validateVoucher(body: ValidateVoucherRequest) {
-	return apiClient.post<ValidateVoucherResponse>("/validate", body);
+/** What the rider sees after a confirmed delivery: the order when the server sent it back. */
+export interface DeliveryResult {
+	order: Order | null;
+	message: string | null;
 }
 
-/** Dev only: the voucher the customer's QR would carry, for the simulated scanner. */
-export function getDevVoucher(omsOrderId: string) {
-	return apiClient.get<DevVoucherResponse>(`/dev/voucher/${encodeURIComponent(omsOrderId)}`);
-}
-
-/** Dev only: an order out for delivery and its voucher, for the "Simulate delivery" shortcut. */
-export function getDevDeliveringOrder() {
-	return apiClient.get<DevDeliveringOrderResponse>("/dev/delivering");
+/**
+ * The rider's Order ID + voucher pair, checked by the Sales service. A wrong pair is a `400` with
+ * the server's message (`"Invalid order id or voucher code."`), thrown as `ApiError`.
+ */
+export async function confirmDelivery(body: RiderDeliverRequest): Promise<DeliveryResult> {
+	const res = await riderApiClient.post<RiderDeliverResponse | undefined>(
+		API_ENDPOINTS.rider.deliver,
+		body,
+	);
+	return {
+		order: res?.data ? toOrder(res.data) : null,
+		message: typeof res?.message === "string" ? res.message : null,
+	};
 }

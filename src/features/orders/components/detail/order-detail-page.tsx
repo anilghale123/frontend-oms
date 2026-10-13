@@ -1,30 +1,63 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { useParams } from "next/navigation";
-import { Package, PackageCheck, Truck } from "lucide-react";
+import { CircleCheck, Package, PackageCheck, Truck, type LucideIcon } from "lucide-react";
 import { Page, PageBody } from "@/components/layout";
 import { CopyButton, EmptyState, ErrorState } from "@/components/feedback";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { merchantRoutes } from "@/config/nav";
+import { orderRoutes as orderRouteTitles } from "@/config/nav";
 import { ApiError } from "@/lib/api/client";
-import { canTransition } from "@/lib/domain";
-import { AssignRiderDialog, MarkReadyDialog } from "@/features/fulfillment";
-import { useAssignRider } from "../../hooks/use-assign-rider";
+import { toErrorMessage } from "@/lib/api/errors";
+import { primaryAction, type Order, type OrderStatus } from "@/lib/domain";
 import { useOrderRoutes } from "../../order-routes";
-import { useOrder, useUpdateOrderStatus } from "../../hooks/use-orders";
-import { OrderProgressTracker, type FulfillmentNextStep } from "./order-fulfillment";
+import { useOrder } from "../../hooks/use-orders";
+import { useOrderStatusChange } from "../../hooks/use-order-status-change";
+import { OrderProgressTracker } from "./order-fulfillment";
 import { OrderSidePanel } from "./order-side-panel";
-import { OrderDeliveryPanel } from "./order-delivery-panel";
+import { OrderDetailsPanel } from "./order-details-panel";
 import { OrderListPanel } from "./order-list-panel";
+import { OrderStatusMenu } from "./order-status-menu";
 import { OrderSummary } from "./order-summary";
 import { StatusBadge } from "../status-badge";
 
-const BACK_LABEL = `Back to ${merchantRoutes.orderQueue.title}`;
+const BACK_LABEL = `Back to ${orderRouteTitles.orderQueue.title}`;
+
+/** The next-step bar's copy per status. */
+const NEXT_STEP: Record<OrderStatus, { title: string; description: string }> = {
+	preparing: {
+		title: "Mark the order ready",
+		description: "Pack the item, then mark it ready for delivery.",
+	},
+	ready_for_delivery: {
+		title: "Assign a rider",
+		description: "Record who is delivering it. The order moves to Delivering.",
+	},
+	delivering: {
+		title: "Out for delivery",
+		description: "The rider confirms delivery with the customer’s voucher, or mark it delivered.",
+	},
+	delivered: {
+		title: "Delivered",
+		description: "This order is complete. Change its status only to correct a mistake.",
+	},
+	failed: {
+		title: "Failed",
+		description: "This order stopped here. Change its status only to correct a mistake.",
+	},
+};
+
+/** The primary button's icon, per the status it leads from. */
+const PRIMARY_ICON: Partial<Record<OrderStatus, LucideIcon>> = {
+	preparing: PackageCheck,
+	ready_for_delivery: Truck,
+	delivering: CircleCheck,
+};
 
 export interface OrderDetailPageProps {
-	omsOrderId: string;
+	/** The partner's `reference_id`, from the URL. */
+	referenceId: string;
 }
 
 /**
@@ -34,11 +67,11 @@ export interface OrderDetailPageProps {
  * orders. The list hides below `lg`.
  */
 export function OrderDetailLayout({ children }: { children: ReactNode }) {
-	const params = useParams<{ omsOrderId: string }>();
+	const params = useParams<{ referenceId: string }>();
 	return (
 		<div className="-m-3 flex min-h-0 flex-1 md:-m-4">
 			<OrderListPanel
-				selectedId={decodeURIComponent(params.omsOrderId ?? "")}
+				selectedId={decodeURIComponent(params.referenceId ?? "")}
 				className="hidden lg:flex"
 			/>
 			<div className="flex min-w-0 flex-1 flex-col overflow-y-auto p-3 md:p-4">{children}</div>
@@ -47,30 +80,25 @@ export function OrderDetailLayout({ children }: { children: ReactNode }) {
 }
 
 /**
- * Merchant order detail in two columns: the work on the left (fulfillment tracker, items, delivery
- * details from the redeem form) and one collapsible side card on the right (customer profile open,
- * rider and activity closed).
- * The next fulfillment action sits in a highlighted bar at the top of the Fulfillment card;
- * Mark ready asks for confirmation first.
+ * Merchant order detail in two columns: the work on the left (fulfillment tracker, items, order
+ * details) and one collapsible side card on the right (customer open, rider and activity closed).
+ * The status actions sit in a highlighted bar at the top of the Fulfillment card: the status's
+ * primary action, and a "Change status" menu with every other status.
  */
-export function OrderDetailPage({ omsOrderId }: OrderDetailPageProps) {
+export function OrderDetailPage({ referenceId }: OrderDetailPageProps) {
 	const orderRoutes = useOrderRoutes();
 	const back = { href: orderRoutes.queue, label: BACK_LABEL };
-	const { data, isLoading, isError, refetch, error } = useOrder(omsOrderId);
-	const updateStatus = useUpdateOrderStatus(omsOrderId);
-	const assignRider = useAssignRider(omsOrderId);
-	const [riderOpen, setRiderOpen] = useState(false);
-	const [confirmReadyOpen, setConfirmReadyOpen] = useState(false);
+	const { data: order, isLoading, isError, isFetching, refetch, error } = useOrder(referenceId);
 
 	if (isLoading) {
 		return (
-			<Page title={omsOrderId} back={back}>
+			<Page title={referenceId} back={back}>
 				<PageBody>
 					<div className="grid items-start gap-4 xl:grid-cols-3">
 						<div className="flex flex-col gap-4 xl:col-span-2">
 							<Skeleton className="h-36 w-full rounded-xl" />
 							<Skeleton className="h-48 w-full rounded-xl" />
-							<Skeleton className="h-56 w-full rounded-xl" />
+							<Skeleton className="h-40 w-full rounded-xl" />
 						</div>
 						<div className="flex flex-col gap-4">
 							<Skeleton className="h-64 w-full rounded-xl" />
@@ -81,22 +109,23 @@ export function OrderDetailPage({ omsOrderId }: OrderDetailPageProps) {
 		);
 	}
 
-	if (isError) {
+	if (isError || !order) {
 		const notFound = error instanceof ApiError && error.status === 404;
 		return (
-			<Page title={omsOrderId} back={back}>
+			<Page title={referenceId} back={back}>
 				<PageBody>
 					{notFound ? (
 						<EmptyState
 							icon={Package}
 							title="Order not found"
-							description="This OMS Order ID does not exist, or it belongs to another merchant."
+							description="This order doesn’t exist, or it belongs to another merchant."
 						/>
 					) : (
 						<ErrorState
 							title="Couldn’t load this order"
-							description="Check your connection and try again."
+							description={toErrorMessage(error)}
 							onRetry={() => void refetch()}
+							retrying={isFetching}
 						/>
 					)}
 				</PageBody>
@@ -104,63 +133,42 @@ export function OrderDetailPage({ omsOrderId }: OrderDetailPageProps) {
 		);
 	}
 
-	if (!data) {
-		return null;
-	}
+	return <OrderDetail order={order} back={back} />;
+}
 
-	const { order, activity } = data;
-	const canMarkReady = canTransition(order.status, "ready_for_delivery");
-	const canAssignRider = order.status === "ready_for_delivery";
+function OrderDetail({ order, back }: { order: Order; back: { href: string; label: string } }) {
+	const statusChange = useOrderStatusChange(order);
+	const action = primaryAction(order.status);
+	const PrimaryIcon = PRIMARY_ICON[order.status];
 
-	async function handleMarkReady() {
-		await updateStatus.mutateAsync({ status: "ready_for_delivery" });
-	}
-
-	async function handleAssignRider(values: { name: string; phone: string; vehicleNumber: string }) {
-		await assignRider.mutateAsync(values);
-		await updateStatus.mutateAsync({ status: "delivering" });
-	}
-
-	// The merchant's next action sits in the Fulfillment card, right under the steps it moves.
-	let nextStep: FulfillmentNextStep | undefined;
-	if (canMarkReady) {
-		nextStep = {
-			title: "Mark the order ready",
-			description: "Pack the item, then mark it ready so a rider can be assigned.",
-			actions: (
-				<Button
-					size="36"
-					onClick={() => setConfirmReadyOpen(true)}
-					loading={updateStatus.isPending}
-				>
-					<PackageCheck aria-hidden />
-					Mark ready
-				</Button>
-			),
-		};
-	} else if (canAssignRider) {
-		nextStep = {
-			title: order.rider ? "Update the rider" : "Assign a rider",
-			description: "Add the rider's name, phone and vehicle to send the order out.",
-			actions: (
-				// Assign rider is disabled for now; remove `disabled` to bring it back.
-				<Button
-					size="36"
-					disabled
-					onClick={() => setRiderOpen(true)}
-					loading={assignRider.isPending}
-				>
-					<Truck aria-hidden />
-					{order.rider ? "Update rider" : "Assign rider"}
-				</Button>
-			),
-		};
-	} else if (order.status === "delivering") {
-		nextStep = {
-			title: "Waiting for delivery",
-			description: "The rider confirms delivery with the customer's voucher.",
-		};
-	}
+	const nextStep = {
+		...NEXT_STEP[order.status],
+		actions: (
+			<>
+				{action && (
+					<Button
+						size="36"
+						loading={
+							action.kind === "status"
+								? statusChange.pendingTo === action.to
+								: statusChange.pending && statusChange.pendingTo === null
+						}
+						disabled={statusChange.pending}
+						onClick={() => statusChange.run(action)}
+					>
+						{PrimaryIcon && <PrimaryIcon aria-hidden />}
+						{action.label}
+					</Button>
+				)}
+				<OrderStatusMenu
+					status={order.status}
+					onSelect={statusChange.change}
+					disabled={statusChange.pending}
+					prominent={!action}
+				/>
+			</>
+		),
+	};
 
 	return (
 		<>
@@ -177,28 +185,15 @@ export function OrderDetailPage({ omsOrderId }: OrderDetailPageProps) {
 				<PageBody>
 					<div className="grid items-start gap-4 xl:grid-cols-3">
 						<div className="flex flex-col gap-4 xl:col-span-2">
-							<OrderProgressTracker status={order.status} entries={activity} nextStep={nextStep} />
+							<OrderProgressTracker status={order.status} logs={order.logs} nextStep={nextStep} />
 							<OrderSummary order={order} />
-							<OrderDeliveryPanel order={order} />
+							<OrderDetailsPanel order={order} />
 						</div>
-						<OrderSidePanel order={order} activity={activity} />
+						<OrderSidePanel order={order} />
 					</div>
 				</PageBody>
 			</Page>
-
-			<MarkReadyDialog
-				open={confirmReadyOpen}
-				onOpenChange={setConfirmReadyOpen}
-				omsOrderId={order.omsOrderId}
-				onConfirm={handleMarkReady}
-			/>
-
-			<AssignRiderDialog
-				open={riderOpen}
-				onOpenChange={setRiderOpen}
-				initial={order.rider}
-				onSubmit={handleAssignRider}
-			/>
+			{statusChange.dialogs}
 		</>
 	);
 }

@@ -12,8 +12,9 @@ export const APPEARANCE_MODES = [
 export type AppearanceMode = (typeof APPEARANCE_MODES)[number]["id"];
 
 export const APPEARANCE_THEMES = [
-	{ id: "gray", label: "Gray (Default)", token: "neutral" },
-	{ id: "fonepoints", label: "Fonepoints", token: "fonepoints" },
+	{ id: "fonepoints-orange", label: "Fonepoints Orange (Default)", token: "fonepoints-orange" },
+	{ id: "gray", label: "Gray", token: "neutral" },
+	{ id: "fonepoints", label: "Fonepoints Red", token: "fonepoints" },
 	{ id: "red", label: "Red", token: "red" },
 	{ id: "orange", label: "Orange", token: "orange" },
 	{ id: "amber", label: "Amber", token: "amber" },
@@ -37,9 +38,14 @@ export type AppearanceTheme = (typeof APPEARANCE_THEMES)[number]["id"];
 
 export const APPEARANCE_FONTS = [
 	{
+		id: "nunito",
+		label: "Nunito",
+		description: "Fonepoints brand typeface — default look",
+	},
+	{
 		id: "geist",
 		label: "Geist",
-		description: "Modern product sans — default look",
+		description: "Modern product sans",
 	},
 	{
 		id: "inter",
@@ -61,18 +67,24 @@ export type Appearance = {
 	font: AppearanceFont;
 };
 
-/** Matches the current product look until the user saves a preference. */
+/**
+ * The Fonepoints look until the user saves a preference: the brand orange and Nunito.
+ *
+ * Keep `theme` and `font` in step with the CSS defaults in `globals.css` (the bare `@theme`
+ * primary and `--font-body`). The boot script sets no `data-theme` or `data-font` when nothing is
+ * stored, so the CSS defaults are what paints first.
+ */
 export const DEFAULT_APPEARANCE: Appearance = {
 	mode: "light",
-	theme: "violet-blue",
-	font: "geist",
+	theme: "fonepoints-orange",
+	font: "nunito",
 };
 
-/** Reset target, matching the reference appearance defaults. */
+/** Reset target: the Fonepoints defaults, following the system's light or dark. */
 export const RESET_APPEARANCE: Appearance = {
 	mode: "system",
-	theme: "gray",
-	font: "geist",
+	theme: "fonepoints-orange",
+	font: "nunito",
 };
 
 const THEME_IDS = new Set<string>(APPEARANCE_THEMES.map((theme) => theme.id));
@@ -158,7 +170,7 @@ export function applyAppearance(appearance: Appearance) {
 	const root = document.documentElement;
 	root.classList.toggle("dark", resolveDark(appearance.mode));
 	root.dataset.theme = appearance.theme;
-	if (appearance.font === "geist") {
+	if (appearance.font === "nunito") {
 		delete root.dataset.font;
 	} else {
 		root.dataset.font = appearance.font;
@@ -199,4 +211,4 @@ export const HOST_THEME_HINT_PARAMS = { mode: "theme", accent: "accent" } as con
  * embedded the host owns the mode and accent. The stored font always wins — the host has no
  * opinion on it.
  */
-export const APPEARANCE_BOOT_SCRIPT = `(function(){try{var r=localStorage.getItem("${APPEARANCE_STORAGE_KEY}");var a=r?JSON.parse(r):null;var h=new URLSearchParams(location.hash.slice(1));var hm=h.get("${HOST_THEME_HINT_PARAMS.mode}");var ha=h.get("${HOST_THEME_HINT_PARAMS.accent}");var m=hm==="dark"||hm==="light"?hm:a&&a.mode;var d=m==="dark"||(m==="system"&&window.matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.classList.toggle("dark",!!d);var t=ha&&/^[a-z][a-z-]{1,23}$/.test(ha)?ha:a&&a.theme;if(t)document.documentElement.dataset.theme=t;if(a&&a.font&&a.font!=="geist")document.documentElement.dataset.font=a.font;}catch(e){}})();`;
+export const APPEARANCE_BOOT_SCRIPT = `(function(){try{var r=localStorage.getItem("${APPEARANCE_STORAGE_KEY}");var a=r?JSON.parse(r):null;var h=new URLSearchParams(location.hash.slice(1));var hm=h.get("${HOST_THEME_HINT_PARAMS.mode}");var ha=h.get("${HOST_THEME_HINT_PARAMS.accent}");var m=hm==="dark"||hm==="light"?hm:a&&a.mode;var d=m==="dark"||(m==="system"&&window.matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.classList.toggle("dark",!!d);var t=ha&&/^[a-z][a-z-]{1,23}$/.test(ha)?ha:a&&a.theme;if(t)document.documentElement.dataset.theme=t;if(a&&a.font&&a.font!=="nunito")document.documentElement.dataset.font=a.font;}catch(e){}})();`;
