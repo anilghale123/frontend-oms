@@ -28,6 +28,7 @@ import {
 	UPSTREAM_TIMEOUT_MS,
 	salesUnreachableMessage,
 } from "@/config/server-env";
+import { trace, traceWarn } from "@/lib/debug";
 import { clearSessionCookie, readSessionCookie } from "../../session/_cookie";
 
 /** Methods that change something, and so need the CSRF check below. */
@@ -55,6 +56,10 @@ async function forward(request: Request, ctx: Context) {
 	if (MUTATING.has(request.method)) {
 		const origin = request.headers.get("origin");
 		if (origin && origin !== new URL(request.url).origin) {
+			traceWarn("proxy", `✖ ${request.method} /${path.join("/")} refused: cross-origin (check H)`, {
+				origin,
+				expected: new URL(request.url).origin,
+			});
 			return error("forbidden", "Cross-origin request", 403);
 		}
 	}
@@ -63,16 +68,31 @@ async function forward(request: Request, ctx: Context) {
 		return error("sales_not_configured", SALES_CONFIG_PROBLEM ?? "", 503);
 	}
 
+	const cookieToken = await readSessionCookie();
 	const token =
-		(await readSessionCookie()) ??
+		cookieToken ??
 		// The fallback for a browser that refused the cookie. `@/lib/auth/token` explains why
 		// holding it in memory is acceptable; it only ever reaches this server over a same-origin
 		// request.
 		request.headers.get("x-oms-token");
 
 	if (!token) {
+		trace(
+			"proxy",
+			`step 24 · ${request.method} /${path.join("/")}: no session (no cookie, no fallback header) → 401`,
+		);
 		return error("unauthorized", "No OMS session", 401);
 	}
+	const label = `${request.method} /${path.join("/")}`;
+	const startedAt = Date.now();
+	const queryKeys = [...new URL(request.url).searchParams.keys()];
+	trace(
+		"proxy",
+		`step 24 · ${label}: token from ${cookieToken ? "the oms_at cookie" : "the x-oms-token fallback header"}; forwarding to Sales with Authorization: Bearer`,
+		{
+			query: queryKeys.length ? queryKeys.join(", ") : "none",
+		},
+	);
 
 	// Next hands the segments over decoded; an order id is data, so it is encoded again.
 	const upstreamPath = path.map(encodeURIComponent).join("/");
@@ -94,6 +114,7 @@ async function forward(request: Request, ctx: Context) {
 		});
 	} catch (cause) {
 		const timedOut = cause instanceof DOMException && cause.name === "TimeoutError";
+		traceWarn("proxy", `✖ step 24 · ${label}: Sales ${timedOut ? "timed out" : "unreachable"}`);
 		console.error(
 			`[oms-proxy] ${request.method} ${url} ${timedOut ? "timed out" : "failed"}:`,
 			cause,
@@ -107,6 +128,15 @@ async function forward(request: Request, ctx: Context) {
 	// cookie means the next boot takes a new token rather than retrying this one on every request.
 	if (upstream.status === 401) {
 		await clearSessionCookie();
+		traceWarn(
+			"proxy",
+			`✖ step 26 · ${label}: Sales refused the token (401); oms_at cookie deleted`,
+		);
+	} else {
+		trace(
+			"proxy",
+			`✔ step 25 · ${label}: Sales answered ${upstream.status} (${Date.now() - startedAt} ms)`,
+		);
 	}
 
 	const headers = new Headers({ "Cache-Control": "no-store" });

@@ -18,6 +18,7 @@
  */
 
 import { OMS_API_BASE, RIDER_API_BASE } from "@/config/constants";
+import { trace } from "@/lib/debug";
 import {
 	SESSION_EXPIRED_MESSAGE,
 	forgetToken,
@@ -48,6 +49,13 @@ async function request<T>(
 	init?: RequestInit,
 ): Promise<T> {
 	const fallbackToken = session ? readRememberedToken() : null;
+	const method = init?.method ?? "GET";
+	const startedAt = performance.now();
+	const done = (status: number | string) =>
+		trace(
+			session ? "api" : "rider",
+			`step 23 · ${method} ${base}${path} → ${status} (${Math.round(performance.now() - startedAt)} ms)`,
+		);
 
 	let res: Response;
 	try {
@@ -64,6 +72,7 @@ async function request<T>(
 			},
 		});
 	} catch (cause) {
+		done("no response");
 		// No response at all: offline, DNS failure, or an aborted request.
 		// Keep the original failure attached for debugging; the message stays user-facing.
 		throw new ApiError("Couldn't reach OMS. Check your connection and try again.", 0, "network", {
@@ -73,7 +82,12 @@ async function request<T>(
 
 	// Missing, invalid or revoked token. There is no refresh endpoint, so retrying is pointless:
 	// drop the fallback copy and let the session gate ask the portal for a new one.
+	done(res.status);
 	if (res.status === 401 && session) {
+		trace(
+			"api",
+			"step 26 · 401 from Sales: the token is refused; the proxy has already deleted the cookie",
+		);
 		forgetToken();
 		notifySessionExpired();
 		throw new ApiError(SESSION_EXPIRED_MESSAGE, 401, "session_expired");

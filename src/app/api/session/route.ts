@@ -20,6 +20,7 @@
  */
 
 import { z } from "zod";
+import { trace, traceWarn } from "@/lib/debug";
 import { clearSessionCookie, readSessionCookie, setSessionCookie } from "./_cookie";
 
 const bodySchema = z.object({ token: z.string().trim().min(1) });
@@ -31,6 +32,10 @@ export async function POST(request: Request) {
 	// no business here — and without this check any site could seed a session cookie in a visitor's
 	// browser with a token of its choosing.
 	if (!isSameOrigin(request)) {
+		traceWarn("session", "✖ step 20 · POST /api/session refused: cross-origin (check F)", {
+			origin: request.headers.get("origin"),
+			expected: new URL(request.url).origin,
+		});
 		return Response.json(
 			{ error: { code: "forbidden", message: "Cross-origin request" } },
 			{ status: 403 },
@@ -39,6 +44,7 @@ export async function POST(request: Request) {
 
 	const parsed = bodySchema.safeParse(await request.json().catch(() => null));
 	if (!parsed.success) {
+		trace("session", "✖ step 20 · POST /api/session refused: no token in the body (check F) → 400");
 		return Response.json(
 			{ error: { code: "invalid_body", message: "A token is required" } },
 			{ status: 400 },
@@ -46,16 +52,27 @@ export async function POST(request: Request) {
 	}
 
 	await setSessionCookie(parsed.data.token);
+	trace(
+		"session",
+		"✔ step 20–21 · POST /api/session: origin ok; token stored in the oms_at cookie",
+		{
+			tokenLength: parsed.data.token.length,
+			cookie: "HttpOnly; Secure; SameSite=None; Partitioned; 400 days",
+			calledSales: false,
+		},
+	);
 	return Response.json({ ok: true }, { headers: NO_STORE });
 }
 
 export async function GET() {
 	if (!(await readSessionCookie())) {
+		trace("session", "step 7 · GET /api/session: no oms_at cookie → 401 no_session");
 		return Response.json(
 			{ error: { code: "no_session", message: "No session" } },
 			{ status: 401, headers: NO_STORE },
 		);
 	}
+	trace("session", "step 7 · GET /api/session: oms_at cookie present → 200 (Sales not called)");
 	return Response.json({ ok: true }, { headers: NO_STORE });
 }
 
@@ -66,6 +83,10 @@ export async function GET() {
  */
 export async function DELETE(request: Request) {
 	if (!isSameOrigin(request)) {
+		traceWarn("session", "✖ step 30 · DELETE /api/session refused: cross-origin (check F)", {
+			origin: request.headers.get("origin"),
+			expected: new URL(request.url).origin,
+		});
 		return Response.json(
 			{ error: { code: "forbidden", message: "Cross-origin request" } },
 			{ status: 403 },
@@ -73,6 +94,7 @@ export async function DELETE(request: Request) {
 	}
 
 	await clearSessionCookie();
+	trace("session", "✔ step 31 · DELETE /api/session: oms_at cookie deleted");
 	return Response.json({ ok: true }, { headers: NO_STORE });
 }
 

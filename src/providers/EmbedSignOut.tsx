@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { EMBED_HOST_ORIGINS } from "@/config/env";
 import { forgetToken } from "@/lib/auth";
+import { trace } from "@/lib/debug";
 import { createHostChannel } from "@/lib/host";
 
 /**
@@ -23,16 +24,33 @@ import { createHostChannel } from "@/lib/host";
 export function EmbedSignOut() {
 	useEffect(() => {
 		const channel = createHostChannel(EMBED_HOST_ORIGINS);
-		if (!channel.embedded) return;
+		if (!channel.embedded) {
+			trace(
+				"signout",
+				"opened outside the portal: doing nothing (only the portal may sign OMS out)",
+			);
+			return;
+		}
 
 		let cancelled = false;
+		trace("signout", "step 30 · the portal asked OMS to sign out: DELETE /api/session");
 		void fetch("/api/session", { method: "DELETE" })
 			.then((res) => {
 				forgetToken();
+				trace(
+					"signout",
+					`step 31 · the server answered HTTP ${res.status}${res.ok ? ": cookie deleted" : ""}`,
+				);
 				// Reported only when the cookies are really gone; otherwise the portal's timeout says so.
-				if (res.ok && !cancelled) channel.send({ type: "oms.auth.cleared" });
+				if (res.ok && !cancelled) {
+					trace("signout", "step 32 · telling the portal: oms.auth.cleared");
+					channel.send({ type: "oms.auth.cleared" });
+				}
 			})
-			.catch(() => {
+			.catch((error) => {
+				trace("signout", "✖ could not reach OMS's server; the portal will time out", {
+					error: String(error),
+				});
 				// Nothing to report: the portal times out and treats sign-out as unconfirmed.
 			});
 

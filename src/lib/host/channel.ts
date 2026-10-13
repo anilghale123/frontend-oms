@@ -20,6 +20,7 @@ import {
 	type HostToOms,
 	type OmsToHost,
 } from "./messages";
+import { trace } from "@/lib/debug";
 
 type Handler<T extends HostToOms["type"]> = (
 	message: Extract<HostToOms, { type: T }>,
@@ -57,6 +58,9 @@ export function createHostChannel(allowedOrigins: readonly string[]): HostChanne
 
 	// `window.parent === window` in a top-level page. Guarded here rather than at every call site.
 	const embedded = typeof window !== "undefined" && window.parent !== window;
+	if (typeof window !== "undefined" && !embedded) {
+		trace("host", "not framed by a portal (window.parent === window): the channel stays idle");
+	}
 
 	/**
 	 * The parent's origin is not known until it speaks, so the first validated message records
@@ -67,6 +71,10 @@ export function createHostChannel(allowedOrigins: readonly string[]): HostChanne
 
 	function send(message: OmsToHost) {
 		if (!embedded) return;
+		trace("host", `→ portal  ${message.type}`, {
+			...message,
+			to: parentOrigin ?? `${allowedOrigins.length} candidate origin(s) until the portal speaks`,
+		});
 		// Before the host has spoken, `oms.ready` has to go to each candidate separately: a
 		// wildcard target would hand the message to whatever origin happens to hold the frame.
 		const targets = parentOrigin ? [parentOrigin] : allowedOrigins;
@@ -94,15 +102,59 @@ export function createHostChannel(allowedOrigins: readonly string[]): HostChanne
 		const onMessage = (event: MessageEvent) => {
 			// All three checks are required, and dropping any one of them turns this channel into
 			// an injection point (auth.md section 12, rule 3).
-			if (!allowedOrigins.includes(event.origin)) return;
-			if (event.source !== window.parent) return;
-			if (!isHostMessage(event.data)) return;
+			// Only a message that says it is from the portal is worth a log line when it is refused.
+			// Everything else on this window — dev tools, extensions, Next's HMR — is noise.
+			const claimsHost =
+				typeof event.data === "object" &&
+				event.data !== null &&
+				(event.data as { source?: unknown }).source === HOST_SOURCE;
 
+			if (!allowedOrigins.includes(event.origin)) {
+				if (claimsHost) {
+					trace(
+						"host",
+						"✖ refused a message that claims to be the portal: origin not allowed (check E)",
+						{
+							origin: event.origin,
+							allowed: allowedOrigins,
+						},
+					);
+				}
+				return;
+			}
+			if (event.source !== window.parent) {
+				if (claimsHost) {
+					trace("host", "✖ refused a message: not sent by the parent window (check E)", {
+						origin: event.origin,
+					});
+				}
+				return;
+			}
+			if (!isHostMessage(event.data)) {
+				if (claimsHost) {
+					trace("host", "✖ refused a message: wrong envelope or protocol version (check E)", {
+						origin: event.origin,
+					});
+				}
+				return;
+			}
+
+			if (parentOrigin !== event.origin) {
+				trace("host", `portal identified: ${event.origin} — replies now target it exactly`);
+			}
 			parentOrigin = event.origin;
+			trace(
+				"host",
+				`← portal  ${event.data.type}  (origin, window and envelope checked)`,
+				event.data,
+			);
 			dispatch(event.data, event.origin);
 		};
 
 		window.addEventListener("message", onMessage);
+		trace("host", "step 4 · framed by the portal; announcing oms.ready", {
+			allowedOrigins,
+		});
 		// The child drives the handshake: the parent cannot know when our JS ran, so it waits for
 		// this and answers (auth.md section 8, handshake invariants).
 		send({ type: "oms.ready" });

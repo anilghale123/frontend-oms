@@ -14,6 +14,7 @@
  */
 
 import { z } from "zod";
+import { trace, traceWarn } from "@/lib/debug";
 import {
 	SALES_CONFIG_PROBLEM,
 	SALES_RIDER_API,
@@ -32,6 +33,7 @@ export async function POST(request: Request) {
 	// Same-origin only: the rider page posts here, and nothing else has a reason to.
 	const origin = request.headers.get("origin");
 	if (origin && origin !== new URL(request.url).origin) {
+		traceWarn("rider", "✖ POST /api/rider/deliver refused: cross-origin", { origin });
 		return error("forbidden", "Cross-origin request", 403);
 	}
 
@@ -61,6 +63,11 @@ export async function POST(request: Request) {
 			: error("sales_unreachable", salesUnreachableMessage(), 502);
 	}
 
+	// The order id and voucher code are not logged: the voucher is the rider's credential.
+	trace(
+		"rider",
+		`POST rider/deliver/ → Sales answered ${upstream.status} (no token sent: riders have none)`,
+	);
 	const text = await upstream.text();
 	return new Response(text || null, {
 		status: upstream.status,

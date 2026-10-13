@@ -10,6 +10,7 @@ import {
 	type ReactNode,
 } from "react";
 import { SESSION_EXPIRED_MESSAGE, forgetToken, onSessionExpired, rememberToken } from "@/lib/auth";
+import { trace } from "@/lib/debug";
 import type { GrantReason } from "@/lib/host";
 import { useHostChannel } from "./HostChannelProvider";
 
@@ -115,7 +116,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
 	/** When the portal last handed over a token that was stored. Zero for a cookie session. */
 	const signedInAt = useRef(0);
 
+	/** When OMS last asked the portal for a token, to time the handshake in the trace. */
+	const askedAt = useRef(0);
+
 	const retry = useCallback(() => {
+		trace("auth", "retry pressed: starting the session check again");
 		exchanging.current = false;
 		awaitingGrant.current = false;
 		setStatus("loading");
@@ -126,6 +131,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
 	/** Every path out of "no session" goes through here, so the kind is never left stale. */
 	const fail = useCallback((kind: AuthFailureKind, message: string) => {
+		trace("auth", `✖ no session (${kind}): ${message}`);
 		setReason(message);
 		setReasonKind(kind);
 		setStatus("unauthenticated");
@@ -140,13 +146,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
 	 */
 	const exchange = useCallback(
 		async (token: string): Promise<boolean> => {
-			if (exchanging.current) return false;
+			if (exchanging.current) {
+				trace("auth", "a second grant arrived while the first is being stored: ignored");
+				return false;
+			}
 			exchanging.current = true;
 
 			// Held in memory as well as in the cookie, for a browser that refuses a partitioned
 			// third-party cookie. See `@/lib/auth/token` — memory only, never storage.
 			rememberToken(token);
 
+			trace("auth", "step 19 · sending the token to OMS's own server (POST /api/session)", {
+				token,
+			});
 			try {
 				const res = await fetch("/api/session", {
 					method: "POST",
@@ -157,6 +169,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 				if (!res.ok) {
 					exchanging.current = false;
 					forgetToken();
+					trace("auth", `✖ step 20 · the server refused to store it: HTTP ${res.status}`);
 					fail("failure", (await errorMessage(res)) || "Couldn't start the OMS session.");
 					return false;
 				}
@@ -164,13 +177,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
 				// Counted from a fresh trade only: a token refused soon after this is a bad token,
 				// not a revoked one, and must not be asked for again in a loop.
 				signedInAt.current = Date.now();
+				trace(
+					"auth",
+					`✔ step 21–22 · token stored in the oms_at cookie; session ready${
+						askedAt.current
+							? ` (${Math.round(performance.now() - askedAt.current)} ms after asking the portal)`
+							: ""
+					}`,
+				);
 				setReason(null);
 				setReasonKind(null);
 				setStatus("authenticated");
 				return true;
-			} catch {
+			} catch (error) {
 				exchanging.current = false;
 				forgetToken();
+				trace("auth", "✖ step 19 · could not reach OMS's own server", { error: String(error) });
 				fail("failure", "Couldn't reach OMS to start the session.");
 				return false;
 			}
@@ -189,8 +211,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
 			setReason(null);
 			setReasonKind(null);
 			setStatus("loading");
-			if (awaitingGrant.current) return;
+			if (awaitingGrant.current) {
+				trace(
+					"auth",
+					`step 8 · already waiting for the portal's answer; not asking again (${why})`,
+				);
+				return;
+			}
 			awaitingGrant.current = true;
+			askedAt.current = performance.now();
+			trace("auth", `step 8 · asking the portal for a token (reason: ${why})`);
 			channel?.send({ type: "oms.auth.renew", reason: why });
 		},
 		[channel],
@@ -208,13 +238,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
 		const offGrant = channel.on("host.auth.grant", ({ token }) => {
 			// Only the answer to our own `oms.auth.renew`. A grant that arrives while the session is
 			// fine is dropped, which is what keeps a valid session from being replaced.
-			if (!awaitingGrant.current) return;
-			if (typeof token !== "string" || !token) return;
+			if (!awaitingGrant.current) {
+				trace("auth", "✖ step 18 · a grant arrived but OMS did not ask for one: ignored (check J)");
+				return;
+			}
+			if (typeof token !== "string" || !token) {
+				trace("auth", "✖ step 18 · the grant carried no token: ignored");
+				return;
+			}
+			trace("auth", "step 18 · the grant answers OMS's own request: accepted (check J)", { token });
 			awaitingGrant.current = false;
 
 			void exchange(token).then((stored) => {
 				// Reported back so the portal can show the connection state, and so a failure is
 				// visible there rather than only inside a frame nobody is looking at.
+				trace(
+					"auth",
+					stored
+						? "step 22 · telling the portal: signed in (session: new)"
+						: "telling the portal the token could not be stored (exchange_failed)",
+				);
 				channel.send(
 					stored
 						? { type: "oms.auth.ok", session: "new" }
@@ -226,7 +269,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
 		const offDenied = channel.on("host.auth.denied", ({ reason: denied }) => {
 			// A denial matters only while OMS is waiting for a token. One that arrives while the
 			// session is fine must not sign the merchant out.
-			if (!awaitingGrant.current) return;
+			if (!awaitingGrant.current) {
+				trace("auth", `a denial (${denied}) arrived but OMS did not ask for a token: ignored`);
+				return;
+			}
+			trace("auth", `✖ step 10–12 · the portal could not get a token: ${denied}`);
 			awaitingGrant.current = false;
 			exchanging.current = false;
 			// Distinct causes, and conflating them sends people to the wrong fix: an ended portal
@@ -257,15 +304,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
 	 */
 	useEffect(() => {
 		return onSessionExpired(() => {
+			const sinceSignIn = Date.now() - signedInAt.current;
+			trace(
+				"auth",
+				`step 26–27 · Sales refused the token (401); the screens stop calling the API`,
+				{ msSinceSignIn: signedInAt.current ? sinceSignIn : "none on this page view" },
+			);
 			exchanging.current = false;
 
 			// A token handed over less than a minute ago and already refused is a bad token, not a
 			// revoked one. Asking again would most likely bring back the same token, so stop, in the
 			// guide's words for a refused token (`src/api.md`).
 			if (Date.now() - signedInAt.current < RENEW_COOLDOWN_MS) {
+				trace(
+					"auth",
+					"step 28 · the token was handed over under a minute ago: not asking again (no loop)",
+				);
 				fail("failure", SESSION_EXPIRED_MESSAGE);
 				return;
 			}
+			trace("auth", "step 28 · asking the portal for a new token");
 			requestGrant("rejected");
 		});
 	}, [channel, fail, requestGrant]);
@@ -278,6 +336,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 			// 0. OMS is embedded only. Outside the portal's frame there is no host to ask for a token,
 			//    and even a cookie from an earlier visit is not a way in: OMS opens from the portal.
 			//    (On localhost the portal and OMS are one site, so the cookie is visible here too.)
+			trace("auth", `boot · embedded in a portal: ${Boolean(channel?.embedded)}`);
 			if (!channel?.embedded) {
 				fail("direct-visit", "Open OMS from the Fonepoints Business portal.");
 				return;
@@ -289,18 +348,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
 			//    does not call Sales. A token Sales no longer accepts is caught by the first data
 			//    request, whose 401 starts a new handshake.
 			try {
+				trace("auth", "step 6 · checking OMS's own session cookie (GET /api/session)");
 				const res = await fetch("/api/session", { cache: "no-store" });
 				if (cancelled) return;
 				if (res.ok) {
+					trace("auth", "✔ step 7 · cookie found: signed in with no handshake (session: existing)");
 					setStatus("authenticated");
 					// The portal is waiting to hear this before it does anything about a token.
 					// An existing session means no handshake at all.
 					channel.send({ type: "oms.auth.ok", session: "existing" });
 					return;
 				}
+				trace("auth", `step 7 · no session cookie (HTTP ${res.status}): a handshake is needed`);
 				// 401 `no_session`: fall through and ask the portal.
-			} catch {
+			} catch (error) {
 				// No session yet is the normal first visit, not an error. Fall through.
+				trace("auth", "step 6 · the session check failed; treating it as no session", {
+					error: String(error),
+				});
 			}
 			if (cancelled) return;
 

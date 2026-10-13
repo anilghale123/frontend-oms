@@ -7,6 +7,7 @@ import {
 	loadAppearance,
 	type AppearanceTheme,
 } from "@/lib/appearance";
+import { trace } from "@/lib/debug";
 import { asAppearanceTheme, isHostThemeMode } from "@/lib/host";
 import { useHostChannel } from "./HostChannelProvider";
 
@@ -36,7 +37,10 @@ export function HostSync() {
 		if (!channel?.embedded) return;
 
 		return channel.on("host.theme", ({ mode, accent }) => {
-			if (!isHostThemeMode(mode)) return;
+			if (!isHostThemeMode(mode)) {
+				trace("host", "step 5 · host.theme ignored: unknown mode", { mode });
+				return;
+			}
 
 			// `loadAppearance` is the stored preference, so the font the merchant picked survives a
 			// host theme push; only the mode and accent come from the host.
@@ -46,6 +50,10 @@ export function HostSync() {
 				APPEARANCE_THEMES as readonly { id: AppearanceTheme }[],
 			);
 
+			trace("host", "step 5 · applying the portal's theme (not saved)", {
+				mode,
+				accent: hostAccent ?? `ignored unknown accent "${String(accent)}"`,
+			});
 			applyAppearance({
 				...current,
 				mode,
