@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
+import { EMBED_BASE_PATH } from "@/config/constants";
 import {
 	APPEARANCE_THEMES,
 	applyAppearance,
@@ -10,7 +12,7 @@ import {
 	type AppearanceTheme,
 } from "@/lib/appearance";
 import { trace } from "@/lib/debug";
-import { asAppearanceTheme, isHostThemeMode } from "@/lib/host";
+import { asAppearanceTheme, asHostRoute, isHostThemeMode } from "@/lib/host";
 import { useHostChannel } from "./HostChannelProvider";
 
 /**
@@ -23,6 +25,12 @@ import { useHostChannel } from "./HostChannelProvider";
  * `host.visible` when they come back. Nothing was refetched while OMS was hidden, so the screen on
  * show refreshes whatever has gone stale (older than the 30-second `staleTime`). Only stale
  * queries: a merchant flicking between pages should not spend the Sales rate limit.
+ *
+ * With it the portal sends `host.route.request { path: "/orders" }`: coming back through the
+ * portal's OMS link opens the order queue, as any portal section opens on its landing page, even
+ * if the merchant had left OMS on an order. The navigation replaces the history entry rather than
+ * adding one, so the browser's back button is not left stepping through OMS screens the merchant
+ * never chose. Only order screens are accepted (`asHostRoute`).
  *
  * The theme is applied **transiently** — `applyAppearance`, never `saveAppearance`. Persisting
  * the host's choice would make it stick the next time the merchant opens OMS standalone, and
@@ -40,6 +48,24 @@ import { useHostChannel } from "./HostChannelProvider";
 export function HostSync() {
 	const channel = useHostChannel();
 	const queryClient = useQueryClient();
+	const router = useRouter();
+	const pathname = usePathname();
+
+	useEffect(() => {
+		if (!channel?.embedded) return;
+
+		return channel.on("host.route.request", ({ path }) => {
+			const route = asHostRoute(path);
+			if (!route) {
+				trace("host", "host.route.request ignored: not an order screen", { path });
+				return;
+			}
+			const target = `${EMBED_BASE_PATH}${route}`;
+			if (target === pathname) return;
+			trace("host", `the portal opens ${target}`);
+			router.replace(target);
+		});
+	}, [channel, router, pathname]);
 
 	useEffect(() => {
 		if (!channel?.embedded) return;

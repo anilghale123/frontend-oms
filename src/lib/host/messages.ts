@@ -57,7 +57,12 @@ export type OmsToHost =
 export type HostToOms =
 	/** Host appearance. Applied transiently — never persisted (auth.md section 9). */
 	| { type: "host.theme"; mode: HostThemeMode; accent?: string }
-	/** Host deep link, e.g. the browser back button in the portal. Declared, not handled yet. */
+	/**
+	 * Open an OMS screen, by its path under the embedded surface (`/orders`, `/orders/{id}`). The
+	 * portal sends `/orders` when the merchant comes back to OMS from another portal page, so OMS
+	 * opens on its order queue like any portal section opened from the sidebar. Anything that is not
+	 * an order screen is ignored (`asHostRoute`).
+	 */
 	| { type: "host.route.request"; path: string }
 	/** The answer to `oms.auth.renew`. Used only while OMS is waiting for one. */
 	| { type: "host.auth.grant"; token: string; expiresAt: string }
@@ -99,6 +104,16 @@ export function isHostMessageOfType<T extends HostToOms["type"]>(
 	type: T,
 ): message is Extract<HostToOms, { type: T }> & Envelope {
 	return message.type === type;
+}
+
+/**
+ * The OMS path a `host.route.request` may open, or `null`. Only the order screens, and only as a
+ * plain path: no query, no fragment, no `..`, and never `//`, which a router would read as another
+ * host. The portal is trusted, but a message is still data.
+ */
+export function asHostRoute(path: unknown): string | null {
+	if (typeof path !== "string") return null;
+	return /^\/orders(\/[A-Za-z0-9._~%-]+)?$/.test(path) && !path.includes("..") ? path : null;
 }
 
 /** True when `value` is one of the appearance modes the host may send. */

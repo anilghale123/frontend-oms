@@ -10,6 +10,12 @@ import { HOST_SOURCE, PROTOCOL_VERSION } from "@/lib/host";
 import { HostChannelProvider } from "./HostChannelProvider";
 import { HostSync } from "./HostSync";
 
+const navigation = vi.hoisted(() => ({ replace: vi.fn(), pathname: "/embed/orders/ORD008" }));
+vi.mock("next/navigation", () => ({
+	useRouter: () => ({ replace: navigation.replace }),
+	usePathname: () => navigation.pathname,
+}));
+
 const HOST_ORIGIN = "http://localhost:4200";
 
 function framed() {
@@ -31,9 +37,9 @@ function renderSync() {
 	return refetch;
 }
 
-function post(source: unknown, origin = HOST_ORIGIN) {
+function post(source: unknown, origin = HOST_ORIGIN, data: Record<string, unknown> = {}) {
 	const event = new MessageEvent("message", {
-		data: { source: HOST_SOURCE, v: PROTOCOL_VERSION, type: "host.visible" },
+		data: { source: HOST_SOURCE, v: PROTOCOL_VERSION, type: "host.visible", ...data },
 		origin,
 	});
 	Object.defineProperty(event, "source", { value: source });
@@ -43,6 +49,8 @@ function post(source: unknown, origin = HOST_ORIGIN) {
 afterEach(() => {
 	cleanup();
 	vi.restoreAllMocks();
+	navigation.replace.mockReset();
+	navigation.pathname = "/embed/orders/ORD008";
 });
 
 describe("HostSync — host.visible", () => {
@@ -64,5 +72,41 @@ describe("HostSync — host.visible", () => {
 		post(window.parent, "https://evil.example");
 
 		expect(refetch).not.toHaveBeenCalled();
+	});
+});
+
+describe("HostSync — host.route.request", () => {
+	const route = (path: unknown) => ({ type: "host.route.request", path });
+
+	it("opens the order queue when the merchant comes back from another portal page", () => {
+		const parent = framed();
+		renderSync();
+
+		post(parent, HOST_ORIGIN, route("/orders"));
+
+		// Replaces the history entry: back should not step through screens nobody chose.
+		expect(navigation.replace).toHaveBeenCalledWith("/embed/orders");
+	});
+
+	it("does nothing when OMS is already there", () => {
+		navigation.pathname = "/embed/orders";
+		const parent = framed();
+		renderSync();
+
+		post(parent, HOST_ORIGIN, route("/orders"));
+
+		expect(navigation.replace).not.toHaveBeenCalled();
+	});
+
+	it("ignores anything that is not an order screen, and messages from anyone but the portal", () => {
+		const parent = framed();
+		renderSync();
+
+		post(parent, HOST_ORIGIN, route("//evil.example"));
+		post(parent, HOST_ORIGIN, route("/orders/../api/session"));
+		post(window, HOST_ORIGIN, route("/orders"));
+		post(parent, "https://evil.example", route("/orders"));
+
+		expect(navigation.replace).not.toHaveBeenCalled();
 	});
 });

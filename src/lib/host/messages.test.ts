@@ -5,6 +5,7 @@ import {
 	OMS_SOURCE,
 	PROTOCOL_VERSION,
 	asAppearanceTheme,
+	asHostRoute,
 	isHostMessage,
 	isHostMessageOfType,
 	isHostThemeMode,
@@ -99,6 +100,33 @@ describe("asAppearanceTheme", () => {
 	it("returns null for a non-string", () => {
 		for (const value of [undefined, null, 7, {}, ["fonepoints"]]) {
 			expect(asAppearanceTheme(value, themes)).toBeNull();
+		}
+	});
+});
+
+describe("asHostRoute", () => {
+	it("accepts the order screens the portal may open", () => {
+		expect(asHostRoute("/orders")).toBe("/orders");
+		expect(asHostRoute("/orders/ORD-001")).toBe("/orders/ORD-001");
+		expect(asHostRoute("/orders/ORD%2F7")).toBe("/orders/ORD%2F7");
+	});
+
+	it("refuses anything that is not a plain order path", () => {
+		for (const path of [
+			"//evil.example/orders",
+			"https://evil.example/orders",
+			"/orders/../api/session",
+			"/orders/..",
+			"/orders?status=failed",
+			"/orders#x",
+			"/orders/a/b",
+			"/settings",
+			"orders",
+			"",
+			undefined,
+			42,
+		]) {
+			expect(asHostRoute(path)).toBeNull();
 		}
 	});
 });

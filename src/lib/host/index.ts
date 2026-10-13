@@ -4,6 +4,7 @@ export {
 	OMS_SOURCE,
 	PROTOCOL_VERSION,
 	asAppearanceTheme,
+	asHostRoute,
 	isHostMessage,
 	isHostMessageOfType,
 	isHostThemeMode,
