@@ -136,6 +136,21 @@ export interface RiderDeliverRequest {
 }
 
 /**
+ * What the rider page posts to this app's `/api/rider/deliver`: the Sales body plus the Cloudflare
+ * Turnstile token. The route checks the token with Cloudflare and forwards only the Sales fields.
+ */
+export interface RiderDeliverBody extends RiderDeliverRequest {
+	turnstileToken: string;
+}
+
+/**
+ * `ApiError.code` when `/api/rider/deliver` refuses the Turnstile token (missing, expired, spent
+ * or failed). It is a `400` like a wrong voucher, but the voucher was never checked, so the form
+ * tells these two apart by this code.
+ */
+export const RIDER_VERIFICATION_FAILED = "verification_failed";
+
+/**
  * The success body is not documented. It may carry the order (`{ data }`) or a `message`; the
  * rider portal shows whichever it gets.
  */

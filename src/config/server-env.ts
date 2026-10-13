@@ -47,6 +47,35 @@ export const SALES_RIDER_API = SALES_URL ? `${SALES_URL}api/oms/rider/` : "";
 export const UPSTREAM_TIMEOUT_MS = 15_000;
 
 /**
+ * Cloudflare's always-passing test secret, used when `TURNSTILE_SECRET_KEY` is not set outside
+ * production. It accepts any token, so in development the check always passes; it pairs with the
+ * test site key `@/config/env` defaults to. A real site key needs its real secret.
+ */
+const DEV_TURNSTILE_SECRET_KEY = "1x0000000000000000000000000000000AA";
+
+/**
+ * The Cloudflare Turnstile secret for the rider's bot check (`/api/rider/deliver`). The rider's
+ * Order ID + voucher pair is the only credential on that route, so without this check anyone
+ * could post guesses at a voucher code all day.
+ *
+ * Same rule as `OMS_SALES_URL`: a development default, none in production. A production build
+ * without it answers 503 with `TURNSTILE_CONFIG_PROBLEM` rather than skip the check — a bot
+ * check that quietly turns itself off is worse than none, because everyone believes it is on.
+ */
+const turnstileSecret =
+	process.env.TURNSTILE_SECRET_KEY?.trim() || (IS_PRODUCTION ? "" : DEV_TURNSTILE_SECRET_KEY);
+
+export const TURNSTILE_SECRET_KEY = turnstileSecret;
+
+/** Why `TURNSTILE_SECRET_KEY` is empty, in words for the screen; `null` when it is set. */
+export const TURNSTILE_CONFIG_PROBLEM = turnstileSecret
+	? null
+	: "TURNSTILE_SECRET_KEY is not set. Set the Turnstile secret key for this site and restart.";
+
+/** Cloudflare's endpoint that checks a Turnstile token. Each token passes once, within 5 minutes. */
+export const TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
+
+/**
  * Shown when the Sales service cannot be reached. Development names the address, because the
  * usual cause there is a wrong `OMS_SALES_URL` or no network; production does not, because a
  * backend address is nobody's business on a merchant's screen.

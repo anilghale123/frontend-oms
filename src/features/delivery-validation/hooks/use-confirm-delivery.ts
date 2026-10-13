@@ -9,6 +9,10 @@ import { confirmDelivery } from "../api";
 export function useConfirmDelivery() {
 	return useMutation({
 		mutationFn: (values: DeliveryValidationValues) =>
-			confirmDelivery({ order_id: values.orderId, voucher_code: values.voucherCode }),
+			confirmDelivery({
+				order_id: values.orderId,
+				voucher_code: values.voucherCode,
+				turnstileToken: values.turnstileToken,
+			}),
 	});
 }

@@ -33,7 +33,7 @@ export type TraceScope = "host" | "auth" | "api" | "session" | "proxy" | "rider"
 const FLAG_KEY = "oms:debug";
 
 /** Keys whose values are credentials, matched case-insensitively against the whole key. */
-const SECRET_KEY = /token|authorization|api[-_]?key|password|secret|cookie|voucher/i;
+const SECRET_KEY = /token|authorization|api[-_]?key|password|secret|cookie|voucher|turnstile/i;
 
 export function traceEnabled(): boolean {
 	if (process.env.NODE_ENV === "development") return true;

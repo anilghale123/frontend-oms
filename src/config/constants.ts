@@ -19,3 +19,11 @@ export const OMS_API_BASE = "/api/oms";
  * account and so no session cookie (`src/app/api/rider/deliver/route.ts`).
  */
 export const RIDER_API_BASE = "/api/rider";
+
+/**
+ * Cloudflare Turnstile's loader for the rider's bot check, in explicit mode: the widget is drawn
+ * by `TurnstileWidget` when the form mounts, not by scanning the page. Cloudflare asks that it be
+ * loaded from this address, never bundled or proxied, so it stays current.
+ */
+export const TURNSTILE_SCRIPT_URL =
+	"https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";

@@ -24,6 +24,17 @@ describe("redact", () => {
 		expect((out.nested as Record<string, unknown>).ok).toBe(true);
 	});
 
+	it("redacts the rider's Turnstile token under either name", () => {
+		const out = redact({
+			turnstileToken: "0.turnstile-token",
+			"cf-turnstile-response": "0.turnstile-response",
+			errorCodes: ["timeout-or-duplicate"],
+		});
+
+		expect(JSON.stringify(out)).not.toMatch(/0\.turnstile/);
+		expect(out).toMatchObject({ errorCodes: ["timeout-or-duplicate"] });
+	});
+
 	it("leaves non-credential values alone", () => {
 		expect(redact({ reason: "missing", count: 2 })).toEqual({ reason: "missing", count: 2 });
 		expect(redact("plain")).toBe("plain");
