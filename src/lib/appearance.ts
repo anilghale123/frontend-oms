@@ -14,7 +14,7 @@ export type AppearanceMode = (typeof APPEARANCE_MODES)[number]["id"];
 export const APPEARANCE_THEMES = [
 	{ id: "fonepoints-orange", label: "Fonepoints Orange (Default)", token: "fonepoints-orange" },
 	{ id: "gray", label: "Gray", token: "neutral" },
-	{ id: "fonepoints", label: "Fonepoints Red", token: "fonepoints" },
+	{ id: "fonepoints", label: "Fonepoints", token: "fonepoints-orange" },
 	{ id: "red", label: "Red", token: "red" },
 	{ id: "orange", label: "Orange", token: "orange" },
 	{ id: "amber", label: "Amber", token: "amber" },
@@ -165,11 +165,19 @@ export function resolveDark(mode: AppearanceMode) {
 	return prefersDark();
 }
 
+/**
+ * The portal still sends `fonepoints` (the old brand-red id). That id now paints the same
+ * Fonepoints orange as `fonepoints-orange`.
+ */
+export function resolveAppearanceTheme(theme: AppearanceTheme): AppearanceTheme {
+	return theme === "fonepoints" ? "fonepoints-orange" : theme;
+}
+
 export function applyAppearance(appearance: Appearance) {
 	if (typeof document === "undefined") return;
 	const root = document.documentElement;
 	root.classList.toggle("dark", resolveDark(appearance.mode));
-	root.dataset.theme = appearance.theme;
+	root.dataset.theme = resolveAppearanceTheme(appearance.theme);
 	if (appearance.font === "nunito") {
 		delete root.dataset.font;
 	} else {
@@ -192,7 +200,8 @@ export function toggleDarkMode() {
 /**
  * Pre-paint hint from the host, read by the boot script below.
  *
- * The Fonepoints portal appends `#theme=dark&accent=fonepoints` to the iframe URL so the
+ * The Fonepoints portal appends `#theme=dark&accent=fonepoints-orange` (or the legacy
+ * `accent=fonepoints`, which OMS treats as the same orange) to the iframe URL so the
  * embedded OMS paints in the host's theme on the very first frame. Without it a dark host shows
  * a light flash, because the authoritative `host.theme` message cannot arrive until after the
  * page has painted (auth.md section 9).
@@ -211,4 +220,4 @@ export const HOST_THEME_HINT_PARAMS = { mode: "theme", accent: "accent" } as con
  * embedded the host owns the mode and accent. The stored font always wins — the host has no
  * opinion on it.
  */
-export const APPEARANCE_BOOT_SCRIPT = `(function(){try{var r=localStorage.getItem("${APPEARANCE_STORAGE_KEY}");var a=r?JSON.parse(r):null;var h=new URLSearchParams(location.hash.slice(1));var hm=h.get("${HOST_THEME_HINT_PARAMS.mode}");var ha=h.get("${HOST_THEME_HINT_PARAMS.accent}");var m=hm==="dark"||hm==="light"?hm:a&&a.mode;var d=m==="dark"||(m==="system"&&window.matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.classList.toggle("dark",!!d);var t=ha&&/^[a-z][a-z-]{1,23}$/.test(ha)?ha:a&&a.theme;if(t)document.documentElement.dataset.theme=t;if(a&&a.font&&a.font!=="nunito")document.documentElement.dataset.font=a.font;}catch(e){}})();`;
+export const APPEARANCE_BOOT_SCRIPT = `(function(){try{var r=localStorage.getItem("${APPEARANCE_STORAGE_KEY}");var a=r?JSON.parse(r):null;var h=new URLSearchParams(location.hash.slice(1));var hm=h.get("${HOST_THEME_HINT_PARAMS.mode}");var ha=h.get("${HOST_THEME_HINT_PARAMS.accent}");var m=hm==="dark"||hm==="light"?hm:a&&a.mode;var d=m==="dark"||(m==="system"&&window.matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.classList.toggle("dark",!!d);var t=ha&&/^[a-z][a-z-]{1,23}$/.test(ha)?ha:a&&a.theme;if(t==="fonepoints")t="fonepoints-orange";if(t)document.documentElement.dataset.theme=t;if(a&&a.font&&a.font!=="nunito")document.documentElement.dataset.font=a.font;}catch(e){}})();`;

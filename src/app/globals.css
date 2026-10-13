@@ -24,18 +24,18 @@
 	--color-fonepoints-orange-hover: oklch(0.749 0.169 53.26); /* Brand 400 #FE8B33 */
 	--color-fonepoints-orange-text: oklch(0.485 0.132 48.12); /* Brand 700 #984200 */
 
-	/* Fonepoints brand red (#D12427) — logo and the opt-in Fonepoints accent theme, never status */
+	/* Fonepoints brand red (#D12427) — wordmark/logo only, never the interactive accent */
 	--color-brand: oklch(0.5559 0.2064 26.62);
 	--color-brand-fg: oklch(1 0 0);
 
-	/* fonepoints — accent scale on the brand red (Radian red steps, brand hue) */
-	--color-fonepoints: var(--color-brand);
-	--color-fonepoints-fg: var(--color-brand-fg);
-	--color-fonepoints-accent: oklch(0.955 0.02 20);
-	--color-fonepoints-focus: oklch(0.912 0.042 20);
-	--color-fonepoints-border: oklch(0.7 0.17 24);
-	--color-fonepoints-hover: oklch(0.6 0.21 26.6);
-	--color-fonepoints-text: var(--color-brand);
+	/* fonepoints — the id the portal still sends. Same scale as fonepoints-orange. */
+	--color-fonepoints: var(--color-fonepoints-orange);
+	--color-fonepoints-fg: var(--color-fonepoints-orange-fg);
+	--color-fonepoints-accent: var(--color-fonepoints-orange-accent);
+	--color-fonepoints-focus: var(--color-fonepoints-orange-focus);
+	--color-fonepoints-border: var(--color-fonepoints-orange-border);
+	--color-fonepoints-hover: var(--color-fonepoints-orange-hover);
+	--color-fonepoints-text: var(--color-fonepoints-orange-text);
 
 	/* success */
 	--color-success: var(--color-emerald);
@@ -141,12 +141,6 @@
 	--color-fonepoints-orange-border: oklch(0.485 0.132 48.12); /* Brand 700 #984200 */
 	--color-fonepoints-orange-hover: oklch(0.749 0.169 53.26); /* Brand 400 #FE8B33 */
 	--color-fonepoints-orange-text: oklch(0.803 0.131 57.02); /* Brand 300 #FEA866 */
-
-	/* fonepoints */
-	--color-fonepoints-accent: oklch(0.255 0.065 24);
-	--color-fonepoints-focus: oklch(0.295 0.09 25);
-	--color-fonepoints-border: oklch(0.44 0.145 26);
-	--color-fonepoints-text: oklch(0.7 0.17 23);
 
 	/* success */
 	--color-success: var(--color-emerald);
@@ -394,13 +388,14 @@ html[data-theme="gray"] {
 	--color-primary-text: var(--color-neutral-text);
 }
 html[data-theme="fonepoints"] {
-	--color-primary: var(--color-fonepoints);
-	--color-primary-fg: var(--color-fonepoints-fg);
-	--color-primary-accent: var(--color-fonepoints-accent);
-	--color-primary-focus: var(--color-fonepoints-focus);
-	--color-primary-border: var(--color-fonepoints-border);
-	--color-primary-hover: var(--color-fonepoints-hover);
-	--color-primary-text: var(--color-fonepoints-text);
+	/* Portal default accent id; paints the same orange as fonepoints-orange. */
+	--color-primary: var(--color-fonepoints-orange);
+	--color-primary-fg: var(--color-fonepoints-orange-fg);
+	--color-primary-accent: var(--color-fonepoints-orange-accent);
+	--color-primary-focus: var(--color-fonepoints-orange-focus);
+	--color-primary-border: var(--color-fonepoints-orange-border);
+	--color-primary-hover: var(--color-fonepoints-orange-hover);
+	--color-primary-text: var(--color-fonepoints-orange-text);
 }
 html[data-theme="red"] {
 	--color-primary: var(--color-red);

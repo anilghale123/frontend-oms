@@ -5,6 +5,7 @@ import {
 	APPEARANCE_THEMES,
 	applyAppearance,
 	loadAppearance,
+	resolveAppearanceTheme,
 	type AppearanceTheme,
 } from "@/lib/appearance";
 import { trace } from "@/lib/debug";
@@ -57,7 +58,7 @@ export function HostSync() {
 			applyAppearance({
 				...current,
 				mode,
-				theme: hostAccent ?? current.theme,
+				theme: hostAccent ? resolveAppearanceTheme(hostAccent) : current.theme,
 			});
 		});
 	}, [channel]);
