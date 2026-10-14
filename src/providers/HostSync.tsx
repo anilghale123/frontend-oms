@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { EMBED_BASE_PATH } from "@/config/constants";
+import { orderRoutes } from "@/config/nav";
 import {
 	APPEARANCE_THEMES,
 	applyAppearance,
@@ -31,6 +32,10 @@ import { useHostChannel } from "./HostChannelProvider";
  * if the merchant had left OMS on an order. The navigation replaces the history entry rather than
  * adding one, so the browser's back button is not left stepping through OMS screens the merchant
  * never chose. Only order screens are accepted (`asHostRoute`).
+ *
+ * The other way, OMS reports every screen change (`oms.route.changed`), and the portal keeps the
+ * open order in its own URL (`/oms?order={id}`) and frames that screen when it is reloaded — so
+ * refreshing the portal on an order stays on the order.
  *
  * The theme is applied **transiently** — `applyAppearance`, never `saveAppearance`. Persisting
  * the host's choice would make it stick the next time the merchant opens OMS standalone, and
@@ -66,6 +71,17 @@ export function HostSync() {
 			router.replace(target);
 		});
 	}, [channel, router, pathname]);
+
+	// Tell the portal which screen is open, on every move (and on load), so it can keep the order in
+	// its own URL: refreshing the portal then reopens this screen instead of the queue. Only the
+	// order screens are reported, in the same shape `host.route.request` takes back.
+	useEffect(() => {
+		if (!channel?.embedded || !pathname.startsWith(`${EMBED_BASE_PATH}/`)) return;
+		const path = asHostRoute(pathname.slice(EMBED_BASE_PATH.length));
+		if (!path) return;
+		const title = path === "/orders" ? orderRoutes.orderQueue.title : orderRoutes.orderDetail.title;
+		channel.send({ type: "oms.route.changed", path, title });
+	}, [channel, pathname]);
 
 	useEffect(() => {
 		if (!channel?.embedded) return;
