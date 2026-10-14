@@ -82,7 +82,7 @@ export function DataTableCard<TData>({
 				// onToggleFullscreen={allowFullscreen ? toggleFullscreen : undefined}
 				actions={toolbarActions}
 			/>
-			<DataTableView table={table} rowSize={rowSize} className="min-h-40 flex-1" {...view} />
+			<DataTableView table={table} rowSize={rowSize} className="flex-1" {...view} />
 			{showPagination && <DataTablePagination table={table} pageSizes={pageSizes} />}
 		</div>
 	);
