@@ -39,9 +39,9 @@ export interface DataTableCardProps<TData> extends Omit<
  * (show columns, row size, full screen), the rows, and pagination. Owns row size and
  * full-screen state; the table instance comes from the caller.
  *
- * A column: given a height (`flex-1` in a bounded parent), the toolbar and the pagination keep
- * their size and only the rows scroll, under the sticky column headers. Without one it grows with
- * its rows.
+ * A column that is as tall as its rows. In a parent with a bounded height it stops at that height
+ * (it shrinks, never grows past its content): the toolbar and the pagination keep their size and
+ * only the rows scroll, under the sticky column headers.
  */
 export function DataTableCard<TData>({
 	table,
@@ -82,7 +82,7 @@ export function DataTableCard<TData>({
 				// onToggleFullscreen={allowFullscreen ? toggleFullscreen : undefined}
 				actions={toolbarActions}
 			/>
-			<DataTableView table={table} rowSize={rowSize} className="flex-1" {...view} />
+			<DataTableView table={table} rowSize={rowSize} className="min-h-40 flex-1" {...view} />
 			{showPagination && <DataTablePagination table={table} pageSizes={pageSizes} />}
 		</div>
 	);

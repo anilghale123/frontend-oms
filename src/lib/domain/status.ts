@@ -111,14 +111,20 @@ export function fulfillmentSequence(
 	return ORDER_STATUS_SEQUENCE.filter((step) => showDelivering || step !== "delivering");
 }
 
-/** The statuses the "Change status" menu offers: every offered one except the current. */
+/**
+ * The statuses the "Change status" menu offers: only forward. An order moves down the happy path
+ * (`ORDER_STATUS_SEQUENCE`) and never back — not from Ready for delivery to Preparing, not from
+ * Delivered to anything earlier — and may be marked Failed until it is final. `delivered` and
+ * `failed` end the flow, so they offer nothing. The server would accept any move (`src/api.md`);
+ * this is the UI's rule. Delivering is left out while it is off (`DELIVERING_ENABLED`).
+ */
 export function otherStatuses(
 	status: OrderStatus,
 	{ delivering = DELIVERING_ENABLED }: RiderRuleOptions = {},
 ): OrderStatus[] {
-	return ORDER_STATUSES.filter(
-		(candidate) => candidate !== status && (delivering || candidate !== "delivering"),
-	);
+	if (isFinalStatus(status)) return [];
+	const ahead = ORDER_STATUS_SEQUENCE.slice(ORDER_STATUS_SEQUENCE.indexOf(status) + 1);
+	return [...ahead, "failed" as const].filter((next) => delivering || next !== "delivering");
 }
 
 /**
@@ -133,7 +139,7 @@ export function goesThroughAssignRider(
 	return assignRider && to === "delivering";
 }
 
-/** `delivered` and `failed` end the flow. The server still accepts a change away from them. */
+/** `delivered` and `failed` end the flow: the screens offer no change away from them. */
 export function isFinalStatus(status: OrderStatus): boolean {
 	return status === "delivered" || status === "failed";
 }

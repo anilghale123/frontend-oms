@@ -43,7 +43,11 @@ export function OrderRowMenu({ order }: OrderRowMenuProps) {
 				</IconButton>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="end">
-				<DropdownMenuItem onSelect={() => router.push(href)}>
+				{/* Hover and keyboard focus take the accent's soft shade, not the default grey fill. */}
+				<DropdownMenuItem
+					onSelect={() => router.push(href)}
+					className="hover:bg-primary-accent hover:text-primary-text focus:bg-primary-accent focus:text-primary-text hover:[&_svg]:text-primary-text focus:[&_svg]:text-primary-text"
+				>
 					<Eye aria-hidden />
 					View details
 				</DropdownMenuItem>

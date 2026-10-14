@@ -7,7 +7,7 @@ export interface OrderDetailsPanelProps {
 }
 
 /**
- * Order details card: the partner's own order ID (`src/api.md` asks for it as "Partner order ID"),
+ * "Delivery details" card: the partner's own order ID (`src/api.md` asks for it as "Partner order ID"),
  * when the order was created, and where it goes. Read-only.
  */
 export function OrderDetailsPanel({ order }: OrderDetailsPanelProps) {
@@ -17,7 +17,7 @@ export function OrderDetailsPanel({ order }: OrderDetailsPanelProps) {
 	return (
 		<Panel flush>
 			<PanelHeader>
-				<PanelTitle>Order details</PanelTitle>
+				<PanelTitle>Delivery details</PanelTitle>
 			</PanelHeader>
 			<PanelContent>
 				<dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2">

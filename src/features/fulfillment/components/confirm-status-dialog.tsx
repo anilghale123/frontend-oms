@@ -11,7 +11,7 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ORDER_STATUS_LABELS, isFinalStatus, type OrderStatus } from "@/lib/domain";
+import { ORDER_STATUS_LABELS, type OrderStatus } from "@/lib/domain";
 
 interface Copy {
 	title: string;
@@ -23,14 +23,6 @@ interface Copy {
 /** What the dialog says for a move from `from` to `to`, on order `omsOrderId`. */
 function copyFor(from: OrderStatus, to: OrderStatus, omsOrderId: string): Copy {
 	const history = "The customer sees this in their order history.";
-	if (isFinalStatus(from)) {
-		return {
-			title: `Change ${omsOrderId} to ${ORDER_STATUS_LABELS[to]}?`,
-			description: `This order is ${ORDER_STATUS_LABELS[from].toLowerCase()}. Change it only to correct a mistake. ${history}`,
-			action: "Change status",
-			color: to === "failed" ? "error" : "primary",
-		};
-	}
 	if (to === "delivered") {
 		return {
 			title: `Mark ${omsOrderId} delivered?`,

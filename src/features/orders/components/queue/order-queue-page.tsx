@@ -28,8 +28,9 @@ export interface OrderQueuePageProps {
  * Merchant order queue (Meat-Management list pattern): a table card with status tabs and search.
  * Paging, the status filter and search all go to the Sales API, which returns newest first.
  *
- * The card fills the height left under the page header: the toolbar, the column headers and the
- * pagination stay put while the rows scroll between them. An order opens only from its row's
+ * The card is as tall as its rows. Once they would run past the bottom of the frame it stops
+ * growing, and the toolbar, the column headers and the pagination stay put while only the rows
+ * scroll between them. An order opens only from its row's
  * "More actions" menu (`OrderRowMenu`), not by clicking the row.
  */
 export function OrderQueuePage({ placeholder = false }: OrderQueuePageProps) {
@@ -69,12 +70,12 @@ export function OrderQueuePage({ placeholder = false }: OrderQueuePageProps) {
 	});
 
 	return (
-		// `min-h-0` down to the card, so it takes the height left in the frame and its rows scroll.
+		// `min-h-0` down to the card: it is as tall as its rows, until it reaches the bottom of the
+		// frame, and then the rows scroll.
 		<Page title={route.title} className="min-h-0">
 			<PageBody className="min-h-0">
 				<DataTableCard
 					table={table}
-					className="min-h-80 flex-1"
 					searchPlaceholder="Search order ID, customer or product"
 					toolbarLeading={
 						<OrderStatusTabs

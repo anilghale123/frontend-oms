@@ -17,17 +17,21 @@ export interface OrderStatusMenuProps {
 	/** Called with the chosen status; the caller routes it (Assign rider, confirm, or change). */
 	onSelect: (to: OrderStatus) => void;
 	disabled?: boolean;
-	/** Strong primary when it is the only action (final statuses); outline beside a primary. */
+	/** Strong primary when it is the only action; outline beside a primary. */
 	prominent?: boolean;
 }
 
 /**
- * "Change status": every status except the current one (`src/api.md` — "offer every other status
- * in a Change status menu"). The server accepts any move, so this is how a merchant corrects a
- * mistake, including on a delivered or failed order. Delivering opens Assign rider instead of
- * changing the status directly, so the rider is recorded.
+ * "Change status": the statuses ahead of the current one, and Failed (`otherStatuses`). It only
+ * moves forward: an order never goes back to an earlier status, and delivered and failed orders
+ * have no menu. While Assign rider is on, Delivering opens it instead of changing the status
+ * directly, so the rider is recorded.
  */
 export function OrderStatusMenu({ status, onSelect, disabled, prominent }: OrderStatusMenuProps) {
+	const next = otherStatuses(status);
+	// Delivered and failed orders are final: nothing to move to, so no menu.
+	if (next.length === 0) return null;
+
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
@@ -45,7 +49,7 @@ export function OrderStatusMenu({ status, onSelect, disabled, prominent }: Order
 				<DropdownMenuLabel className="text-xs text-fg-secondary">
 					Move this order to
 				</DropdownMenuLabel>
-				{otherStatuses(status).map((to) => (
+				{next.map((to) => (
 					<DropdownMenuItem key={to} onSelect={() => onSelect(to)}>
 						<StatusBadge status={to} />
 						{goesThroughAssignRider(to) && (

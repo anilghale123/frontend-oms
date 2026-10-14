@@ -85,26 +85,41 @@ describe("primaryAction", () => {
 });
 
 describe("otherStatuses", () => {
-	it("offers every status except the current one, from any status", () => {
-		// The server accepts any status from any status, including away from a final one.
-		for (const status of ORDER_STATUSES) {
-			const others = otherStatuses(status, withRider);
-			expect(others).not.toContain(status);
-			expect(others).toHaveLength(ORDER_STATUSES.length - 1);
-		}
-	});
-
-	it("leaves Delivering out while it is off, even for a delivering order", () => {
-		expect(OFFERED_STATUSES).not.toContain("delivering");
-		for (const status of ORDER_STATUSES) {
-			expect(otherStatuses(status)).not.toContain("delivering");
-		}
-		expect(otherStatuses("delivering")).toEqual([
-			"preparing",
+	it("only moves forward, and may fail an order until it is final", () => {
+		// The server accepts any status from any status; the screens never go back.
+		expect(otherStatuses("preparing", withRider)).toEqual([
 			"ready_for_delivery",
+			"delivering",
 			"delivered",
 			"failed",
 		]);
+		expect(otherStatuses("ready_for_delivery", withRider)).toEqual([
+			"delivering",
+			"delivered",
+			"failed",
+		]);
+		expect(otherStatuses("delivering", withRider)).toEqual(["delivered", "failed"]);
+	});
+
+	it("never offers an earlier status", () => {
+		for (const status of ORDER_STATUS_SEQUENCE) {
+			const here = ORDER_STATUS_SEQUENCE.indexOf(status);
+			for (const next of otherStatuses(status, withRider)) {
+				if (next !== "failed") expect(ORDER_STATUS_SEQUENCE.indexOf(next)).toBeGreaterThan(here);
+			}
+		}
+	});
+
+	it("offers nothing once an order is delivered or failed", () => {
+		expect(otherStatuses("delivered", withRider)).toEqual([]);
+		expect(otherStatuses("failed", withRider)).toEqual([]);
+	});
+
+	it("leaves Delivering out while it is off", () => {
+		expect(OFFERED_STATUSES).not.toContain("delivering");
+		expect(otherStatuses("preparing")).toEqual(["ready_for_delivery", "delivered", "failed"]);
+		expect(otherStatuses("ready_for_delivery")).toEqual(["delivered", "failed"]);
+		expect(otherStatuses("delivering")).toEqual(["delivered", "failed"]);
 	});
 
 	it("routes delivering through Assign rider, so the rider is recorded", () => {

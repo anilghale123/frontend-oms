@@ -13,6 +13,7 @@ import { toErrorMessage } from "@/lib/api/errors";
 import {
 	ASSIGN_RIDER_ENABLED,
 	DELIVERING_ENABLED,
+	isFinalStatus,
 	primaryAction,
 	type Order,
 	type OrderStatus,
@@ -67,11 +68,11 @@ const NEXT_STEP: Record<OrderStatus, { title: string; description: string }> = {
 			},
 	delivered: {
 		title: "Delivered",
-		description: "This order is complete. Change its status only to correct a mistake.",
+		description: "This order is complete.",
 	},
 	failed: {
 		title: "Failed",
-		description: "This order stopped here. Change its status only to correct a mistake.",
+		description: "This order stopped here.",
 	},
 };
 
@@ -116,11 +117,11 @@ export function OrderDetailLayout({ children, placeholder = false }: OrderDetail
 }
 
 /**
- * Merchant order detail in two columns: the work on the left (fulfillment tracker, items, order
+ * Merchant order detail in two columns: the work on the left (fulfillment tracker, items, delivery
  * details) and one collapsible side card on the right (customer open, activity closed; the rider
  * section is hidden for now).
  * The status actions sit in a highlighted bar at the top of the Fulfillment card: the status's
- * primary action, and a "Change status" menu with every other status.
+ * primary action, and a "Change status" menu with the statuses ahead (none once final).
  */
 export function OrderDetailPage({ referenceId, placeholder = false }: OrderDetailPageProps) {
 	const orderRoutes = useOrderRoutes();
@@ -193,7 +194,8 @@ function OrderDetail({ order, back }: { order: Order; back: { href: string; labe
 
 	const nextStep = {
 		...NEXT_STEP[order.status],
-		actions: (
+		// Delivered and failed orders are final: the bar only says so, with nothing to press.
+		actions: isFinalStatus(order.status) ? undefined : (
 			<>
 				{action && (
 					<Button
