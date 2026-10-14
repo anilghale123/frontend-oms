@@ -27,6 +27,10 @@ import { HostSync } from "@/providers/HostSync";
  * `HostSync` sits outside the gate: the theme should follow the portal even while the session is
  * still opening, so the skeleton is not light inside a dark portal. While it opens, the gate draws
  * the order screen being opened in its loading state (`OrderScreenSkeleton`), not a spinner.
+ *
+ * The content area is exactly the frame's height (`h-dvh`), so the screens scroll inside it: the
+ * queue's rows between its fixed toolbar and pagination, the detail page beside its order list.
+ * It still scrolls as a whole when a screen's minimum height does not fit a very short frame.
  */
 export default function EmbedLayout({ children }: { children: ReactNode }) {
 	return (
@@ -34,7 +38,7 @@ export default function EmbedLayout({ children }: { children: ReactNode }) {
 			<AuthProvider>
 				<OrderRoutesProvider basePath={EMBED_BASE_PATH}>
 					<HostSync />
-					<div className="flex min-h-screen flex-col bg-fill1 p-4">
+					<div className="flex h-dvh flex-col overflow-y-auto bg-fill1 p-4">
 						<SessionGate fallback={<OrderScreenSkeleton />}>{children}</SessionGate>
 					</div>
 				</OrderRoutesProvider>

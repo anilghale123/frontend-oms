@@ -25,7 +25,7 @@ export function OrderScreenSkeleton() {
 	const referenceId = params.referenceId ? decodeURIComponent(params.referenceId) : null;
 
 	return (
-		<div inert className="flex flex-1 flex-col">
+		<div inert className="flex min-h-0 flex-1 flex-col">
 			{referenceId ? (
 				<OrderDetailLayout placeholder>
 					<OrderDetailPage referenceId={referenceId} placeholder />

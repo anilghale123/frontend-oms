@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import type { PaginationState } from "@tanstack/react-table";
 import { ClipboardList } from "lucide-react";
 import { Page, PageBody } from "@/components/layout";
@@ -9,7 +8,6 @@ import { DataTableCard, useDataTable } from "@/components/data-display";
 import { orderRoutes as orderRouteTitles } from "@/config/nav";
 import { toErrorMessage } from "@/lib/api/errors";
 import { ORDER_STATUS_LABELS } from "@/lib/domain";
-import { useOrderRoutes } from "../../order-routes";
 import { useOrders } from "../../hooks/use-orders";
 import { useOrderSearch } from "../../hooks/use-order-search";
 import { createOrderColumns } from "./order-columns";
@@ -29,10 +27,12 @@ export interface OrderQueuePageProps {
 /**
  * Merchant order queue (Meat-Management list pattern): a table card with status tabs and search.
  * Paging, the status filter and search all go to the Sales API, which returns newest first.
+ *
+ * The card fills the height left under the page header: the toolbar, the column headers and the
+ * pagination stay put while the rows scroll between them. An order opens only from its row's
+ * "More actions" menu (`OrderRowMenu`), not by clicking the row.
  */
 export function OrderQueuePage({ placeholder = false }: OrderQueuePageProps) {
-	const router = useRouter();
-	const orderRoutes = useOrderRoutes();
 	const [statusFilter, setStatusFilter] = useState<OrderStatusFilter>("all");
 	const [search, setSearch] = useState("");
 	const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 20 });
@@ -69,10 +69,12 @@ export function OrderQueuePage({ placeholder = false }: OrderQueuePageProps) {
 	});
 
 	return (
-		<Page title={route.title}>
-			<PageBody>
+		// `min-h-0` down to the card, so it takes the height left in the frame and its rows scroll.
+		<Page title={route.title} className="min-h-0">
+			<PageBody className="min-h-0">
 				<DataTableCard
 					table={table}
+					className="min-h-80 flex-1"
 					searchPlaceholder="Search order ID, customer or product"
 					toolbarLeading={
 						<OrderStatusTabs
@@ -105,9 +107,6 @@ export function OrderQueuePage({ placeholder = false }: OrderQueuePageProps) {
 								? "Try another status or search."
 								: "Orders for this merchant will appear here.",
 					}}
-					onRowClick={(row) => router.push(orderRoutes.detail(row.referenceId))}
-					// Prefetched before the click, so the order's loading state shows the instant it lands.
-					onRowIntent={(row) => router.prefetch(orderRoutes.detail(row.referenceId))}
 				/>
 			</PageBody>
 		</Page>

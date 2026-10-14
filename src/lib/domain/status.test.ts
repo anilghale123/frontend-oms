@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
 	ASSIGN_RIDER_ENABLED,
+	DELIVERING_ENABLED,
+	OFFERED_STATUSES,
 	ORDER_STATUSES,
 	ORDER_STATUS_LABELS,
 	ORDER_STATUS_SEQUENCE,
+	fulfillmentSequence,
 	goesThroughAssignRider,
 	isFinalStatus,
 	isOrderStatus,
@@ -12,7 +15,10 @@ import {
 	primaryAction,
 } from "./status";
 
-const withRider = { assignRider: true };
+/** The full flow: Delivering offered and reached through Assign rider. */
+const withRider = { assignRider: true, delivering: true };
+/** Delivering offered, Assign rider off. */
+const withDelivering = { assignRider: false, delivering: true };
 
 describe("primaryAction", () => {
 	it("matches the guide's table of primary actions per status", () => {
@@ -32,12 +38,33 @@ describe("primaryAction", () => {
 		expect(primaryAction("failed", withRider)).toBeNull();
 	});
 
-	it("leads a ready order with nothing while Assign rider is off", () => {
-		expect(ASSIGN_RIDER_ENABLED).toBe(false);
-		expect(primaryAction("ready_for_delivery")).toBeNull();
+	it("leads a ready order with nothing while only Assign rider is off", () => {
+		expect(primaryAction("ready_for_delivery", withDelivering)).toBeNull();
 		// Everything else is unchanged.
+		expect(primaryAction("preparing", withDelivering)).toMatchObject({
+			kind: "status",
+			to: "ready_for_delivery",
+		});
+		expect(primaryAction("delivering", withDelivering)).toMatchObject({
+			kind: "status",
+			to: "delivered",
+		});
+	});
+
+	it("leads a ready order with Mark delivered while Delivering is off", () => {
+		expect(ASSIGN_RIDER_ENABLED).toBe(false);
+		expect(DELIVERING_ENABLED).toBe(false);
+		expect(primaryAction("ready_for_delivery")).toMatchObject({
+			kind: "status",
+			to: "delivered",
+			label: "Mark delivered",
+		});
+		// Assign rider moves an order to Delivering, so it is not offered either.
+		expect(primaryAction("ready_for_delivery", { assignRider: true })).toMatchObject({
+			kind: "status",
+			to: "delivered",
+		});
 		expect(primaryAction("preparing")).toMatchObject({ kind: "status", to: "ready_for_delivery" });
-		expect(primaryAction("delivering")).toMatchObject({ kind: "status", to: "delivered" });
 	});
 
 	it("labels every action, so no screen invents copy", () => {
@@ -61,10 +88,23 @@ describe("otherStatuses", () => {
 	it("offers every status except the current one, from any status", () => {
 		// The server accepts any status from any status, including away from a final one.
 		for (const status of ORDER_STATUSES) {
-			const others = otherStatuses(status);
+			const others = otherStatuses(status, withRider);
 			expect(others).not.toContain(status);
 			expect(others).toHaveLength(ORDER_STATUSES.length - 1);
 		}
+	});
+
+	it("leaves Delivering out while it is off, even for a delivering order", () => {
+		expect(OFFERED_STATUSES).not.toContain("delivering");
+		for (const status of ORDER_STATUSES) {
+			expect(otherStatuses(status)).not.toContain("delivering");
+		}
+		expect(otherStatuses("delivering")).toEqual([
+			"preparing",
+			"ready_for_delivery",
+			"delivered",
+			"failed",
+		]);
 	});
 
 	it("routes delivering through Assign rider, so the rider is recorded", () => {
@@ -124,5 +164,25 @@ describe("status metadata", () => {
 		expect(isOrderStatus("ready_for_delivery")).toBe(true);
 		expect(isOrderStatus("cancelled")).toBe(false);
 		expect(isOrderStatus(undefined)).toBe(false);
+	});
+});
+
+describe("fulfillmentSequence", () => {
+	it("is the whole happy path while Delivering is on", () => {
+		expect(fulfillmentSequence("preparing", withRider)).toEqual(ORDER_STATUS_SEQUENCE);
+	});
+
+	it("drops Delivering while it is off", () => {
+		expect(fulfillmentSequence("ready_for_delivery")).toEqual([
+			"preparing",
+			"ready_for_delivery",
+			"delivered",
+		]);
+		// Also for an order that went through Delivering before it was turned off.
+		expect(fulfillmentSequence("delivered")).not.toContain("delivering");
+	});
+
+	it("keeps Delivering for an order that is delivering now, so its current step shows", () => {
+		expect(fulfillmentSequence("delivering")).toContain("delivering");
 	});
 });

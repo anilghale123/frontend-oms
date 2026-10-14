@@ -62,7 +62,7 @@ export function DataTablePagination<TData>({
 	];
 
 	return (
-		<div className="flex items-center justify-between gap-8 border-t border-border bg-fill1 px-3 py-2">
+		<div className="flex shrink-0 items-center justify-between gap-3 border-t border-border bg-fill1 px-3 py-2 sm:gap-8">
 			<div className="flex items-center gap-3">
 				<Label id={labelId} className="text-fg-secondary max-sm:sr-only">
 					Rows per page

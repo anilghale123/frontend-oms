@@ -76,7 +76,7 @@ export function DataTableToolbar<TData>({
 	return (
 		// Side by side only from `xl`: at `lg` the sidebar leaves too little room for a full row of
 		// status filters next to the search box, and the row would overflow.
-		<div className="flex flex-col gap-2 border-b border-border px-3 py-2.5 xl:flex-row xl:items-center xl:justify-between">
+		<div className="flex shrink-0 flex-col gap-2 border-b border-border px-3 py-2.5 xl:flex-row xl:items-center xl:justify-between">
 			<div className="flex min-w-0 items-center gap-2">{leading}</div>
 			<div className="flex flex-wrap items-center gap-2 xl:justify-end">
 				{searchPlaceholder && (

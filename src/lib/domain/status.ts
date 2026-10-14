@@ -12,6 +12,20 @@ export const ORDER_STATUS_SEQUENCE: OrderStatus[] = [
 /** Every status, in the order filters and menus list them. */
 export const ORDER_STATUSES: OrderStatus[] = [...ORDER_STATUS_SEQUENCE, "failed"];
 
+/**
+ * Whether the screens offer Delivering. **Off for now**: the status filters, the "Change status"
+ * menu and the fulfillment tracker leave it out, and a ready order leads with Mark delivered, so
+ * the flow is Preparing → Ready for delivery → Delivered. An order the API reports as delivering
+ * still shows as Delivering everywhere (badge, tracker, its filter is simply not offered). Set this
+ * to `true` to bring Delivering back everywhere at once.
+ */
+export const DELIVERING_ENABLED = false;
+
+/** The statuses the screens offer: in the status filters and the "Change status" menu. */
+export const OFFERED_STATUSES: OrderStatus[] = ORDER_STATUSES.filter(
+	(status) => DELIVERING_ENABLED || status !== "delivering",
+);
+
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
 	preparing: "Preparing",
 	ready_for_delivery: "Ready for delivery",
@@ -37,6 +51,8 @@ export const ASSIGN_RIDER_ENABLED = false;
 export interface RiderRuleOptions {
 	/** Defaults to `ASSIGN_RIDER_ENABLED`. */
 	assignRider?: boolean;
+	/** Defaults to `DELIVERING_ENABLED`. */
+	delivering?: boolean;
 }
 
 /**
@@ -61,22 +77,48 @@ const PRIMARY_ACTIONS = {
 	failed: null,
 } as const satisfies Record<OrderStatus, PrimaryAction | null>;
 
+/** A ready order's step while Delivering is not offered: straight to delivered. */
+const MARK_DELIVERED: PrimaryAction = { kind: "status", to: "delivered", label: "Mark delivered" };
+
 /**
- * The primary action for an order in `status`; `null` at the end of the flow, and for a ready order
- * while Assign rider is off (`ASSIGN_RIDER_ENABLED`).
+ * The primary action for an order in `status`; `null` at the end of the flow. A ready order leads
+ * with Assign rider; with nothing while Assign rider is off (`ASSIGN_RIDER_ENABLED`), since
+ * Delivering is then a plain change from the menu; and with Mark delivered while Delivering itself
+ * is off (`DELIVERING_ENABLED`), since Assign rider moves an order to Delivering.
  */
 export function primaryAction(
 	status: OrderStatus,
-	{ assignRider = ASSIGN_RIDER_ENABLED }: RiderRuleOptions = {},
+	{ assignRider = ASSIGN_RIDER_ENABLED, delivering = DELIVERING_ENABLED }: RiderRuleOptions = {},
 ): PrimaryAction | null {
 	const action = PRIMARY_ACTIONS[status];
-	if (action?.kind === "assign_rider" && !assignRider) return null;
+	if (action?.kind === "assign_rider") {
+		if (!delivering) return MARK_DELIVERED;
+		if (!assignRider) return null;
+	}
 	return action;
 }
 
-/** The statuses the "Change status" menu offers: every one except the current. */
-export function otherStatuses(status: OrderStatus): OrderStatus[] {
-	return ORDER_STATUSES.filter((candidate) => candidate !== status);
+/**
+ * The fulfillment tracker's steps: the happy path, without Delivering while it is not offered
+ * (`DELIVERING_ENABLED`) — unless the order is delivering right now, so its current step shows. An
+ * order that went through Delivering earlier still lists it in its Activity log.
+ */
+export function fulfillmentSequence(
+	status: OrderStatus,
+	{ delivering = DELIVERING_ENABLED }: RiderRuleOptions = {},
+): OrderStatus[] {
+	const showDelivering = delivering || status === "delivering";
+	return ORDER_STATUS_SEQUENCE.filter((step) => showDelivering || step !== "delivering");
+}
+
+/** The statuses the "Change status" menu offers: every offered one except the current. */
+export function otherStatuses(
+	status: OrderStatus,
+	{ delivering = DELIVERING_ENABLED }: RiderRuleOptions = {},
+): OrderStatus[] {
+	return ORDER_STATUSES.filter(
+		(candidate) => candidate !== status && (delivering || candidate !== "delivering"),
+	);
 }
 
 /**

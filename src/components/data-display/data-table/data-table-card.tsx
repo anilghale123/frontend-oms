@@ -38,6 +38,10 @@ export interface DataTableCardProps<TData> extends Omit<
  * Table card (Meat-Management pattern): toolbar with search, filter and an icon group
  * (show columns, row size, full screen), the rows, and pagination. Owns row size and
  * full-screen state; the table instance comes from the caller.
+ *
+ * A column: given a height (`flex-1` in a bounded parent), the toolbar and the pagination keep
+ * their size and only the rows scroll, under the sticky column headers. Without one it grows with
+ * its rows.
  */
 export function DataTableCard<TData>({
 	table,
@@ -61,7 +65,7 @@ export function DataTableCard<TData>({
 	return (
 		<div
 			className={cn(
-				"overflow-hidden rounded-xl border border-border bg-bg",
+				"flex flex-col overflow-hidden rounded-xl border border-border bg-bg",
 				className,
 				dataTableFullscreenClassName(isFullscreen),
 			)}
@@ -78,12 +82,7 @@ export function DataTableCard<TData>({
 				// onToggleFullscreen={allowFullscreen ? toggleFullscreen : undefined}
 				actions={toolbarActions}
 			/>
-			<DataTableView
-				table={table}
-				rowSize={rowSize}
-				className={isFullscreen ? "flex-1" : undefined}
-				{...view}
-			/>
+			<DataTableView table={table} rowSize={rowSize} className="flex-1" {...view} />
 			{showPagination && <DataTablePagination table={table} pageSizes={pageSizes} />}
 		</div>
 	);

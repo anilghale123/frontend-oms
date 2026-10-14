@@ -10,7 +10,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { orderRoutes as orderRouteTitles } from "@/config/nav";
 import { ApiError } from "@/lib/api/client";
 import { toErrorMessage } from "@/lib/api/errors";
-import { ASSIGN_RIDER_ENABLED, primaryAction, type Order, type OrderStatus } from "@/lib/domain";
+import {
+	ASSIGN_RIDER_ENABLED,
+	DELIVERING_ENABLED,
+	primaryAction,
+	type Order,
+	type OrderStatus,
+} from "@/lib/domain";
 import { useOrderRoutes } from "../../order-routes";
 import { useOrder } from "../../hooks/use-orders";
 import { useOrderStatusChange } from "../../hooks/use-order-status-change";
@@ -26,22 +32,29 @@ const BACK_LABEL = `Back to ${orderRouteTitles.orderQueue.title}`;
 
 /**
  * The next-step bar's copy per status. While Assign rider is off (`ASSIGN_RIDER_ENABLED`) the page
- * says nothing about riders: a ready order is sent out with "Change status" → Delivering.
+ * says nothing about riders: a ready order is sent out with "Change status" → Delivering. While
+ * Delivering is off too (`DELIVERING_ENABLED`) the page never mentions it: a ready order leads with
+ * Mark delivered.
  */
 const NEXT_STEP: Record<OrderStatus, { title: string; description: string }> = {
 	preparing: {
 		title: "Mark the order ready",
 		description: "Pack the item, then mark it ready for delivery.",
 	},
-	ready_for_delivery: ASSIGN_RIDER_ENABLED
+	ready_for_delivery: !DELIVERING_ENABLED
 		? {
-				title: "Assign a rider",
-				description: "Record who is delivering it. The order moves to Delivering.",
-			}
-		: {
 				title: "Ready for delivery",
-				description: "Send the order out, then change its status to Delivering.",
-			},
+				description: "Send the order out, then mark it delivered once the customer has it.",
+			}
+		: ASSIGN_RIDER_ENABLED
+			? {
+					title: "Assign a rider",
+					description: "Record who is delivering it. The order moves to Delivering.",
+				}
+			: {
+					title: "Ready for delivery",
+					description: "Send the order out, then change its status to Delivering.",
+				},
 	delivering: ASSIGN_RIDER_ENABLED
 		? {
 				title: "Out for delivery",
@@ -62,11 +75,11 @@ const NEXT_STEP: Record<OrderStatus, { title: string; description: string }> = {
 	},
 };
 
-/** The primary button's icon, per the status it leads from. */
-const PRIMARY_ICON: Partial<Record<OrderStatus, LucideIcon>> = {
-	preparing: PackageCheck,
-	ready_for_delivery: Truck,
-	delivering: CircleCheck,
+/** The primary button's icon, per the status it leads to. */
+const STATUS_ICON: Partial<Record<OrderStatus, LucideIcon>> = {
+	ready_for_delivery: PackageCheck,
+	delivering: Truck,
+	delivered: CircleCheck,
 };
 
 export interface OrderDetailPageProps {
@@ -172,7 +185,11 @@ export function OrderDetailPage({ referenceId, placeholder = false }: OrderDetai
 function OrderDetail({ order, back }: { order: Order; back: { href: string; label: string } }) {
 	const statusChange = useOrderStatusChange(order);
 	const action = primaryAction(order.status);
-	const PrimaryIcon = PRIMARY_ICON[order.status];
+	const PrimaryIcon = !action
+		? undefined
+		: action.kind === "assign_rider"
+			? Truck
+			: STATUS_ICON[action.to];
 
 	const nextStep = {
 		...NEXT_STEP[order.status],

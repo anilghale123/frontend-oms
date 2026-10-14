@@ -6,6 +6,7 @@ import { ORDER_STATUS_LABELS, type Order } from "@/lib/domain";
 import { formatOrderValue } from "@/lib/utils";
 import { CustomerCell } from "./customer-cell";
 import { ItemCell } from "./item-cell";
+import { OrderRowMenu } from "./order-row-menu";
 import { OrderStatusAction } from "./order-status-action";
 import { StatusBadge } from "../status-badge";
 
@@ -125,9 +126,14 @@ export function createOrderColumns(): ColumnDef<Order, unknown>[] {
 			enableHiding: false,
 			meta: { label: "Actions", className: "w-32", export: [] },
 			header: () => <span className="block text-center">Actions</span>,
+			// The status button centred, then "More actions" (View details) at the edge, so the menus
+			// line up down the column. Rows are not clickable.
 			cell: ({ row }) => (
-				<div className="flex justify-center">
-					<OrderStatusAction order={row.original} />
+				<div className="flex items-center gap-1">
+					<div className="flex flex-1 justify-center">
+						<OrderStatusAction order={row.original} />
+					</div>
+					<OrderRowMenu order={row.original} />
 				</div>
 			),
 		},

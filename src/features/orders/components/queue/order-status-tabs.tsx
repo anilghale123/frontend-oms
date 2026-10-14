@@ -1,6 +1,6 @@
 "use client";
 
-import { ORDER_STATUSES, ORDER_STATUS_LABELS, type OrderStatus } from "@/lib/domain";
+import { OFFERED_STATUSES, ORDER_STATUS_LABELS, type OrderStatus } from "@/lib/domain";
 import {
 	Select,
 	SelectContent,
@@ -14,8 +14,8 @@ const ALL = "all";
 
 export type OrderStatusFilter = OrderStatus | typeof ALL;
 
-/** All, then each status the API can filter by. */
-export const ORDER_STATUS_FILTERS: OrderStatusFilter[] = [ALL, ...ORDER_STATUSES];
+/** All, then each status the screens offer (Delivering is off for now: `DELIVERING_ENABLED`). */
+export const ORDER_STATUS_FILTERS: OrderStatusFilter[] = [ALL, ...OFFERED_STATUSES];
 
 export interface OrderStatusTabsProps {
 	value: OrderStatusFilter;

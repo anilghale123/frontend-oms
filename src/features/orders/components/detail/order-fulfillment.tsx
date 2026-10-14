@@ -5,7 +5,7 @@ import { CircleCheck, CircleX, Package, PackageCheck, Truck, type LucideIcon } f
 import { Panel, PanelContent, PanelHeader, PanelHint, PanelTitle } from "@/components/layout";
 import {
 	ORDER_STATUS_LABELS,
-	ORDER_STATUS_SEQUENCE,
+	fulfillmentSequence,
 	type OrderLog,
 	type OrderStatus,
 } from "@/lib/domain";
@@ -181,20 +181,23 @@ export function OrderActivityList({ logs }: OrderActivityListProps) {
 export function buildFulfillmentSteps(status: OrderStatus, logs: OrderLog[]): FulfillmentStep[] {
 	const anchors = new Map<OrderStatus, string>();
 	for (const log of logs) anchors.set(log.status, log.date);
+	const sequence = fulfillmentSequence(status);
 
 	if (status === "failed") {
 		return [
-			...ORDER_STATUS_SEQUENCE.filter((step) => anchors.has(step)).map((step): FulfillmentStep => ({
-				status: step,
-				state: "reached",
-				time: anchors.get(step) ?? null,
-			})),
+			...sequence
+				.filter((step) => anchors.has(step))
+				.map((step): FulfillmentStep => ({
+					status: step,
+					state: "reached",
+					time: anchors.get(step) ?? null,
+				})),
 			{ status: "failed", state: "current", time: anchors.get("failed") ?? null },
 		];
 	}
 
-	const currentIndex = ORDER_STATUS_SEQUENCE.indexOf(status);
-	return ORDER_STATUS_SEQUENCE.map((step, index): FulfillmentStep => ({
+	const currentIndex = sequence.indexOf(status);
+	return sequence.map((step, index): FulfillmentStep => ({
 		status: step,
 		state: index < currentIndex ? "reached" : index === currentIndex ? "current" : "upcoming",
 		time: index <= currentIndex ? (anchors.get(step) ?? null) : null,
