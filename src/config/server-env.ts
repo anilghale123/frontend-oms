@@ -14,8 +14,8 @@ import "server-only";
 
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
-/** The development Sales service, used when `OMS_SALES_URL` is not set outside production. */
-const DEV_SALES_URL = "https://dev-sales-api.providhy.com/";
+/** The UAT Sales service, used when `OMS_SALES_URL` is not set outside production. */
+const UAT_SALES_URL = "https://uat-sales-api.providhy.com/";
 
 /**
  * The Sales service, `{SALES_URL}` in `src/api.md`. Always ends in `/`.
@@ -23,7 +23,7 @@ const DEV_SALES_URL = "https://dev-sales-api.providhy.com/";
  * The browser never calls it: screens go through this app's `/api/oms/*` proxy, which attaches
  * the token and forwards here, so neither CORS nor the backend's allowed origins come into it.
  *
- * Outside production it defaults to the development Sales service. A production build has no
+ * Outside production it defaults to the UAT Sales service. A production build has no
  * default — guessing a host there would turn a configuration mistake into a confusing network
  * error — so the proxy answers 503 with `SALES_CONFIG_PROBLEM` instead.
  */
@@ -87,7 +87,7 @@ export function salesUnreachableMessage(): string {
 }
 
 function readSalesUrl(raw: string | undefined): { url: string; problem: string | null } {
-	const value = raw?.trim() || (IS_PRODUCTION ? "" : DEV_SALES_URL);
+	const value = raw?.trim() || (IS_PRODUCTION ? "" : UAT_SALES_URL);
 	if (!value) {
 		return {
 			url: "",
@@ -103,7 +103,7 @@ function readSalesUrl(raw: string | undefined): { url: string; problem: string |
 	} catch {
 		return {
 			url: "",
-			problem: `OMS_SALES_URL ("${value}") is not a valid http(s) URL. Use the form ${DEV_SALES_URL} and restart.`,
+			problem: `OMS_SALES_URL ("${value}") is not a valid http(s) URL. Use the form ${UAT_SALES_URL} and restart.`,
 		};
 	}
 }

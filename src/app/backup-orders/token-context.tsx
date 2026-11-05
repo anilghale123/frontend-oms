@@ -14,7 +14,7 @@ const PARENT_ORIGIN =
 	"http://localhost:3001";
 export const SALES_API_URL =
 	// process.env.NEXT_PUBLIC_SALES_API_URL ||
-	"https://dev-sales-api.providhy.com/api/";
+	"https://uat-sales-api.providhy.com/api/";
 
 const TokenContext = createContext("");
 

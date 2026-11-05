@@ -44,7 +44,7 @@ mock-only backend.
 
 ### Consequences of deferring auth
 
-The real Providhy Sales API (`dev-sales-api.providhy.com`) needs a bearer token on every call, so it is
+The real Providhy Sales API (`uat-sales-api.providhy.com`) needs a bearer token on every call, so it is
 unreachable this phase. That settles two things without further input:
 
 1. **The mock backend is the backend** for this phase, behind `lib/api/contracts.ts`.
