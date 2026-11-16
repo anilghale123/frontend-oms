@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { EMBED_HOST_ORIGINS } from "@/config/env";
-import { forgetToken } from "@/lib/auth";
+import { clearSession, forgetToken } from "@/lib/auth";
 import { trace } from "@/lib/debug";
 import { createHostChannel } from "@/lib/host";
 
@@ -18,8 +18,8 @@ import { createHostChannel } from "@/lib/host";
  * Only the portal can trigger it: `next.config.ts` lets only the listed portal origins frame this
  * page, and opened any other way (`window.parent === window`) it does nothing.
  *
- * Like `AuthProvider`, it calls `fetch` directly: `/api/session` is the session boot route, not a
- * data query behind `OMS_API_BASE` (AGENTS.md rule 6, the session exception).
+ * Like `AuthProvider`, it reaches `/api/session` through `@/lib/auth` (`clearSession`), not the
+ * data client: the session route is not a query behind `OMS_API_BASE` (AGENTS.md rule 6).
  */
 export function EmbedSignOut() {
 	useEffect(() => {
@@ -34,15 +34,17 @@ export function EmbedSignOut() {
 
 		let cancelled = false;
 		trace("signout", "step 30 · the portal asked OMS to sign out: DELETE /api/session");
-		void fetch("/api/session", { method: "DELETE" })
-			.then((res) => {
+		void clearSession()
+			.then((result) => {
 				forgetToken();
 				trace(
 					"signout",
-					`step 31 · the server answered HTTP ${res.status}${res.ok ? ": cookie deleted" : ""}`,
+					result.ok
+						? "step 31 · the server answered: cookie deleted"
+						: `step 31 · the server answered HTTP ${result.status}`,
 				);
 				// Reported only when the cookies are really gone; otherwise the portal's timeout says so.
-				if (res.ok && !cancelled) {
+				if (result.ok && !cancelled) {
 					trace("signout", "step 32 · telling the portal: oms.auth.cleared");
 					channel.send({ type: "oms.auth.cleared" });
 				}

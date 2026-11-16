@@ -1,6 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
+import { decodePathSegment } from "@/lib/utils";
 import { OrderDetailPage } from "./order-detail-page";
 
 /**
@@ -15,7 +16,7 @@ export function OrderDetailSkeleton() {
 	const params = useParams<{ referenceId?: string }>();
 	return (
 		<OrderDetailPage
-			referenceId={params.referenceId ? decodeURIComponent(params.referenceId) : ""}
+			referenceId={params.referenceId ? decodePathSegment(params.referenceId) : ""}
 			placeholder
 		/>
 	);

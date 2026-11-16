@@ -27,7 +27,8 @@ import { cookies } from "next/headers";
  *   browsers keep a cookie; some privacy settings clear partitioned storage sooner, in which case
  *   OMS simply asks the portal for a token again.
  *
- * `path: "/"` because the standalone dashboard, the embedded surface and `/api/oms/*` all need it.
+ * `path: "/"` because the embedded surface (`/embed/*`), the proxy (`/api/oms/*`) and the sign-out
+ * page (`/embed-signout`, which calls `/api/session`) all need it.
  *
  * A browser that refuses the cookie is handled, not ignored: `@/lib/auth/token` keeps the token in
  * memory for that tab and the proxy accepts it as a bearer header.

@@ -2,11 +2,11 @@
  * The OMS side of the host channel: one validated `postMessage` conversation with the portal
  * that frames us.
  *
- * Everything here is a no-op when OMS is not framed, so the standalone dashboard and the rider
- * portal are unaffected by simply mounting it.
+ * Everything here is a no-op when OMS is not framed, so a direct visit and the sign-out page opened
+ * outside the portal are unaffected by simply mounting it.
  *
- * When authentication lands, `requestGrant` is built on this channel rather than beside it — the
- * grant travels over the same envelope as the theme (auth.md sections 7.3 and 8).
+ * The token handshake (`AuthProvider`) and the theme and route sync (`HostSync`) share this one
+ * channel and its envelope (auth.md sections 7.3 and 8).
  *
  * No React in this folder.
  */

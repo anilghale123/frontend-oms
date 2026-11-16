@@ -25,6 +25,15 @@ export const UNKNOWN_ERROR_CODE = "unknown";
  */
 export const SESSION_LOST_CODE = "session_expired";
 
+/**
+ * `ApiError.code` for a success whose body could not be used: not JSON, or without the `data` the
+ * endpoint promises. The request did reach the server, so it is not shown as a connection problem.
+ */
+export const UNREADABLE_RESPONSE_CODE = "unreadable_response";
+
+export const UNREADABLE_RESPONSE_MESSAGE =
+	"OMS got an answer it couldn’t read. Reload, and try again if nothing changed.";
+
 /** True for a failure that only means "no session yet" (see `SESSION_LOST_CODE`). */
 export function isSessionLost(error: unknown): boolean {
 	return error instanceof ApiError && error.code === SESSION_LOST_CODE;
@@ -118,8 +127,8 @@ function firstString(...candidates: unknown[]): string | null {
 }
 
 /**
- * Best available message from a parsed error body, trying every envelope the OMS proxy, the mock
- * and the Sales API are known to use:
+ * Best available message from a parsed error body, trying every envelope the OMS proxy and the
+ * Sales API are known to use:
  *
  * - `{ error: { code, message } }` — this app's proxy and session routes
  * - `{ message }` / `{ detail }` — the Sales API's 409 and its 401/404/429/503

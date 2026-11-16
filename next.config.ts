@@ -20,13 +20,38 @@ const EMBED_HOST_ORIGINS = (
 
 const frameAncestors = ["'self'", ...EMBED_HOST_ORIGINS].join(" ");
 
+/**
+ * Sent on every response. None of them changes what a page can do today; each closes a door:
+ *
+ * - `nosniff` — a response is only ever read as the type it says it is.
+ * - `Referrer-Policy` — an order URL (`/embed/orders/{referenceId}`) is not sent in full to another
+ *   site, e.g. Cloudflare when the rider page loads Turnstile.
+ * - `Strict-Transport-Security` — once seen over HTTPS, the browser never tries HTTP again. Browsers
+ *   ignore it on plain-HTTP responses, so `next dev` on localhost is unaffected.
+ * - `Permissions-Policy` — no screen uses the camera, microphone or location, so nothing loaded into
+ *   OMS can ask for them.
+ *
+ * A `script-src` policy is not here yet: React streams inline scripts on every page, so it needs a
+ * per-request nonce and a report-only trial before it is enforced.
+ */
+const SECURITY_HEADERS = [
+	{ key: "X-Content-Type-Options", value: "nosniff" },
+	{ key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+	{ key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
+	{ key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+];
+
 const nextConfig: NextConfig = {
 	// The dev indicator defaults to bottom-left, where it sits on top of the host portal's sidebar
 	// when OMS is embedded. Moved rather than disabled, so compile and runtime errors stay visible.
 	devIndicators: { position: "bottom-right" },
 
+	// No `X-Powered-By: Next.js`: there is no reason to tell every caller what the server runs.
+	poweredByHeader: false,
+
 	async headers() {
 		return [
+			{ source: "/:path*", headers: SECURITY_HEADERS },
 			{
 				// Only the embedded surface is framable. Everything else stays same-origin only,
 				// so the rider portal and the landing page cannot be clickjacked.

@@ -2,8 +2,7 @@
 
 import type { ReactNode } from "react";
 import type { Table } from "@tanstack/react-table";
-import { Maximize2, Minimize2, Search } from "lucide-react";
-import { IconButton } from "@/components/ui/button";
+import { Search } from "lucide-react";
 import { Input, InputWrapper } from "@/components/ui/input";
 import {
 	Select,
@@ -12,8 +11,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { DataTableRowSizeMenu } from "./data-table-row-size";
-import type { DataTableRowSize } from "./data-table-styles";
 import { DataTableViewOptions } from "./data-table-view-options";
 
 export interface DataTableFilterOption {
@@ -39,12 +36,6 @@ export interface DataTableToolbarProps<TData> {
 	leading?: ReactNode;
 	/** Shows the "Show columns" icon button. */
 	columnToggle?: boolean;
-	/** Shows the "Row size" icon button when both are set. */
-	rowSize?: DataTableRowSize;
-	onRowSizeChange?: (size: DataTableRowSize) => void;
-	/** Shows the "Full screen" icon button when `onToggleFullscreen` is set. */
-	isFullscreen?: boolean;
-	onToggleFullscreen?: () => void;
 	/** Extra controls after the icon group. Page-level actions (export, create) belong in `Page actions`. */
 	actions?: ReactNode;
 }
@@ -53,8 +44,7 @@ const ALL = "__all__";
 
 /**
  * Table toolbar (Meat-Management pattern): optional leading content on the left; search,
- * filter and a compact icon group (show columns, row size, full screen) on the right. Stacked
- * below `xl`.
+ * filter and an optional "Show columns" button on the right. Stacked below `xl`.
  */
 export function DataTableToolbar<TData>({
 	table,
@@ -62,16 +52,10 @@ export function DataTableToolbar<TData>({
 	filter,
 	leading,
 	columnToggle,
-	rowSize,
-	onRowSizeChange,
-	isFullscreen = false,
-	onToggleFullscreen,
 	actions,
 }: DataTableToolbarProps<TData>) {
 	const filterColumn = filter ? table.getColumn(filter.columnId) : undefined;
 	const filterValue = (filterColumn?.getFilterValue() as string | undefined) ?? ALL;
-	const fullscreenLabel = isFullscreen ? "Exit full screen" : "Full screen";
-	const hasIconGroup = columnToggle || (rowSize && onRowSizeChange) || onToggleFullscreen;
 
 	return (
 		// Side by side only from `xl`: at `lg` the sidebar leaves too little room for a full row of
@@ -109,27 +93,7 @@ export function DataTableToolbar<TData>({
 						</SelectContent>
 					</Select>
 				)}
-				{hasIconGroup && (
-					<div className="flex items-center gap-1">
-						{columnToggle && <DataTableViewOptions table={table} />}
-						{rowSize && onRowSizeChange && (
-							<DataTableRowSizeMenu value={rowSize} onValueChange={onRowSizeChange} />
-						)}
-						{onToggleFullscreen && (
-							<IconButton
-								variant="outline"
-								color="neutral"
-								size="32"
-								aria-label={fullscreenLabel}
-								title={fullscreenLabel}
-								aria-pressed={isFullscreen}
-								onClick={onToggleFullscreen}
-							>
-								{isFullscreen ? <Minimize2 /> : <Maximize2 />}
-							</IconButton>
-						)}
-					</div>
-				)}
+				{columnToggle && <DataTableViewOptions table={table} />}
 				{actions && <div className="flex items-center gap-2">{actions}</div>}
 			</div>
 		</div>

@@ -27,13 +27,8 @@ declare module "@tanstack/react-table" {
 	interface ColumnMeta<TData extends RowData, TValue> {
 		/** Extra classes for this column's header and cells, e.g. "text-right tabular-nums". */
 		className?: string;
-		/** Human label for the column, used by `DataTableViewOptions` and exports. */
+		/** Human label for the column, used by `DataTableViewOptions`. */
 		label?: string;
-		/**
-		 * How this column appears in exports. Omit to export `label` + the cell value; pass
-		 * several entries to split one column (e.g. customer → name and email); pass `[]` to skip.
-		 */
-		export?: { label: string; value: (row: TData) => string | number | null | undefined }[];
 	}
 }
 

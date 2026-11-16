@@ -38,8 +38,9 @@ import { useHostChannel } from "./HostChannelProvider";
  * refreshing the portal on an order stays on the order.
  *
  * The theme is applied **transiently** — `applyAppearance`, never `saveAppearance`. Persisting
- * the host's choice would make it stick the next time the merchant opens OMS standalone, and
- * would fire `APPEARANCE_CHANGE_EVENT` for a change the user never made. The corollary is that
+ * the host's choice would store it as if the merchant had picked it in OMS, so it would outlive the
+ * portal's next message, and would fire `APPEARANCE_CHANGE_EVENT` for a change the user never
+ * made. The corollary is that
  * the appearance panel is hidden on the embedded surface: a control the next host message
  * overwrites is worse than no control.
  *

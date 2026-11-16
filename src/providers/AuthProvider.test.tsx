@@ -413,6 +413,42 @@ describe("AuthProvider — opening OMS", () => {
 		await loadOrders();
 		await waitFor(() => expect(sent(posted, "oms.auth.renew")).toHaveLength(2));
 	});
+
+	it("asks the portal again on retry even inside the minute after a refused token", async () => {
+		// The automatic cooldown must not swallow the merchant's own press of "Try again".
+		const { parent, posted } = frameWindow();
+		let granted = false;
+		stubFetch({
+			oms: () => (granted ? refused() : noSession()),
+			sessionPost: () => {
+				granted = true;
+				return json({ ok: true });
+			},
+		});
+
+		function RetryButton() {
+			return <button onClick={useAuth().retry}>Try again</button>;
+		}
+		render(tree(<RetryButton />));
+		await waitFor(() => expect(status()).toHaveTextContent("authenticated"));
+		await loadOrders();
+		await waitFor(() => expect(sent(posted, "oms.auth.renew")).toHaveLength(1));
+		deliverGrant(parent);
+		await waitFor(() => expect(status()).toHaveTextContent("authenticated"));
+
+		// The token just handed over is refused: within the cooldown, so OMS stops by itself.
+		await loadOrders();
+		await waitFor(() => expect(status()).toHaveTextContent("unauthenticated"));
+		expect(sent(posted, "oms.auth.renew")).toHaveLength(1);
+
+		fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+		await waitFor(() => expect(status()).toHaveTextContent("authenticated"));
+		await loadOrders();
+
+		// Still under a minute since the grant, but the merchant asked: the portal is asked again.
+		await waitFor(() => expect(sent(posted, "oms.auth.renew")).toHaveLength(2));
+		expect(sent(posted, "oms.auth.renew")[1]).toMatchObject({ reason: "rejected" });
+	});
 });
 
 describe("AuthProvider — grants and denials", () => {

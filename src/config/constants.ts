@@ -21,6 +21,12 @@ export const OMS_API_BASE = "/api/oms";
 export const RIDER_API_BASE = "/api/rider";
 
 /**
+ * Where a handed-over token becomes the session cookie, and where sign-out deletes it
+ * (`src/app/api/session/route.ts`). Called only through `@/lib/auth/session-api`.
+ */
+export const SESSION_API = "/api/session";
+
+/**
  * Cloudflare Turnstile's loader for the rider's bot check, in explicit mode: the widget is drawn
  * by `TurnstileWidget` when the form mounts, not by scanning the page. Cloudflare asks that it be
  * loaded from this address, never bundled or proxied, so it stays current.

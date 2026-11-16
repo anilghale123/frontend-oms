@@ -159,6 +159,12 @@ export interface RiderDeliverBody extends RiderDeliverRequest {
 export const RIDER_VERIFICATION_FAILED = "verification_failed";
 
 /**
+ * Longest Order ID or voucher code the rider form accepts, and `/api/rider/deliver` forwards. The
+ * endpoint takes no sign-in, so both sides refuse anything longer instead of passing it to Sales.
+ */
+export const RIDER_FIELD_MAX_LENGTH = 64;
+
+/**
  * The success body is not documented. It may carry the order (`{ data }`) or a `message`; the
  * rider portal shows whichever it gets.
  */

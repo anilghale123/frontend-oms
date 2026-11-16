@@ -18,8 +18,10 @@
  * - **A dead token is caught in one place.** An upstream `401` clears the cookie, so the next
  *   boot takes a new token instead of retrying one that will never work again.
  *
- * Only `GET` and `POST`, the two methods the portal API uses. The rider's voucher check does not
- * come through here: a rider has no token, so it has its own route (`/api/rider/deliver`).
+ * Only the routes the screens use are forwarded (`../_routes.ts`): an unknown path is a `404`, an
+ * unknown query key is dropped, and a `POST` body must pass that route's schema and is forwarded as
+ * parsed. The rider's voucher check does not come through here: a rider has no token, so it has its
+ * own route (`/api/rider/deliver`).
  */
 
 import {
@@ -30,13 +32,15 @@ import {
 } from "@/config/server-env";
 import { NO_SESSION_CODE } from "@/lib/api/contracts";
 import { trace, traceWarn } from "@/lib/debug";
+import { isSameOrigin, jsonError as error, readJsonBody } from "../../_shared";
 import { clearSessionCookie, readSessionCookie } from "../../session/_cookie";
-
-/** Methods that change something, and so need the CSRF check below. */
-const MUTATING = new Set(["POST"]);
+import { matchProxyRoute } from "../_routes";
 
 /** Upstream headers worth passing back. `Retry-After` is how a `429` says how long to wait. */
 const PASSED_BACK = ["content-type", "retry-after"];
+
+/** A status change or a rider is a few hundred bytes; this leaves plenty of room. */
+const MAX_BODY_BYTES = 8192;
 
 type Context = { params: Promise<{ path: string[] }> };
 
@@ -52,17 +56,21 @@ async function forward(request: Request, ctx: Context) {
 	const { path } = await ctx.params;
 
 	// `SameSite=None` is forced on the session cookie by the iframe, so `SameSite` does no CSRF
-	// work and the `Origin` check is what replaces it. Browsers always send `Origin` on a
-	// mutating request and page script cannot change it.
-	if (MUTATING.has(request.method)) {
-		const origin = request.headers.get("origin");
-		if (origin && origin !== new URL(request.url).origin) {
-			traceWarn("proxy", `✖ ${request.method} /${path.join("/")} refused: cross-origin (check H)`, {
-				origin,
-				expected: new URL(request.url).origin,
-			});
-			return error("forbidden", "Cross-origin request", 403);
-		}
+	// work and the `Origin` check is what replaces it. Checked on every method, not only `POST`: a
+	// cross-origin `GET` carries the cookie too, and a page on another site has no reason to read
+	// orders through this route.
+	if (!isSameOrigin(request)) {
+		traceWarn("proxy", `✖ ${request.method} /${path.join("/")} refused: cross-origin (check H)`, {
+			origin: request.headers.get("origin"),
+			expected: new URL(request.url).origin,
+		});
+		return error("forbidden", "Cross-origin request", 403);
+	}
+
+	const route = matchProxyRoute(request.method, path, new URL(request.url).searchParams);
+	if (!route.ok) {
+		traceWarn("proxy", `✖ ${request.method} /${path.join("/")} refused: ${route.code}`);
+		return error(route.code, route.message, route.status);
 	}
 
 	if (!SALES_PORTAL_API) {
@@ -88,20 +96,34 @@ async function forward(request: Request, ctx: Context) {
 		return error(NO_SESSION_CODE, "No OMS session", 401);
 	}
 	const label = `${request.method} /${path.join("/")}`;
+
+	// The body is checked before Sales is asked: a field the screens never send, or a status that
+	// does not exist, is refused here with the merchant's token still unused.
+	let body: string | undefined;
+	if (route.body) {
+		const read = await readJsonBody(request, MAX_BODY_BYTES);
+		if (!read.ok) {
+			return read.status === 413
+				? error("body_too_large", "The request is too large.", 413)
+				: error("invalid_body", "The request body is not valid JSON.", 400);
+		}
+		const parsed = route.body.safeParse(read.value);
+		if (!parsed.success) {
+			traceWarn("proxy", `✖ ${label} refused: the body does not match the endpoint`);
+			return error("invalid_body", "The request body is not valid for this endpoint.", 400);
+		}
+		body = JSON.stringify(parsed.data);
+	}
+
 	const startedAt = Date.now();
-	const queryKeys = [...new URL(request.url).searchParams.keys()];
 	trace(
 		"proxy",
 		`step 24 · ${label}: token from ${cookieToken ? "the oms_at cookie" : "the x-oms-token fallback header"}; forwarding to Sales with Authorization: Bearer`,
-		{
-			query: queryKeys.length ? queryKeys.join(", ") : "none",
-		},
+		{ query: route.search || "none" },
 	);
 
-	// Next hands the segments over decoded; an order id is data, so it is encoded again.
-	const upstreamPath = path.map(encodeURIComponent).join("/");
-	const url = `${SALES_PORTAL_API}${upstreamPath}/${new URL(request.url).search}`;
-	const body = MUTATING.has(request.method) ? await request.text() : undefined;
+	// `route.path` is already encoded: Next hands the segments over decoded, and an order id is data.
+	const url = `${SALES_PORTAL_API}${route.path}/${route.search}`;
 
 	let upstream: Response;
 	try {
@@ -112,7 +134,7 @@ async function forward(request: Request, ctx: Context) {
 				accept: "application/json",
 				"content-type": "application/json",
 			},
-			body: body || undefined,
+			body,
 			cache: "no-store",
 			signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
 		});
@@ -152,11 +174,4 @@ async function forward(request: Request, ctx: Context) {
 
 	const text = await upstream.text();
 	return new Response(text || null, { status: upstream.status, headers });
-}
-
-function error(code: string, message: string, status: number) {
-	return Response.json(
-		{ error: { code, message } },
-		{ status, headers: { "Cache-Control": "no-store" } },
-	);
 }

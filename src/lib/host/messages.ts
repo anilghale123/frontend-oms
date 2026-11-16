@@ -1,12 +1,9 @@
 /**
  * The postMessage protocol between the Fonepoints Business portal (parent) and OMS (child).
  *
- * The full protocol is specified in `auth.md` section 8. It is one channel shared by two
- * concerns: the authentication handshake and the host-driven appearance. Only the appearance
- * half is wired today — the portal has a theme switcher, while authentication is still deferred
- * — so the auth message types are declared here and handled when `AuthProvider` lands. Declaring
- * them now keeps the protocol in one place and means auth adds handlers rather than a second
- * envelope.
+ * The full protocol is specified in `auth.md` section 8. It is one channel shared by three
+ * concerns, all over the same envelope: the authentication handshake (`AuthProvider`), the
+ * host-driven appearance and the screen being shown (`HostSync`).
  *
  * No React in this folder.
  */
@@ -43,8 +40,8 @@ export type OmsToHost =
 	| { type: "oms.route.changed"; path: string; title: string }
 	/**
 	 * OMS has a session. `existing` means its cookie was there, so no token was needed; `new` means
-	 * it has just stored a `host.auth.grant`. `merchantId` is sent only when OMS knows it (the
-	 * development sign-in); OMS does not call Sales to sign in, so it usually does not.
+	 * it has just stored a `host.auth.grant`. `merchantId` is part of the agreed protocol but OMS
+	 * does not send it: it never calls Sales to sign in, so it does not know the merchant.
 	 */
 	| { type: "oms.auth.ok"; merchantId?: string; session: "existing" | "new" }
 	| { type: "oms.auth.failed"; reason: string }

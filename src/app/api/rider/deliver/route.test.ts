@@ -114,6 +114,35 @@ describe("POST /api/rider/deliver", () => {
 		expect(fetchMock).not.toHaveBeenCalled();
 	});
 
+	it("refuses an Order ID or voucher code longer than 64 characters", async () => {
+		const fetchMock = stubUpstreams(turnstileSays(true));
+
+		const long = "X".repeat(65);
+		for (const body of [
+			{ order_id: long, voucher_code: VOUCHER, turnstileToken: TOKEN },
+			{ order_id: "OMS-0427", voucher_code: long, turnstileToken: TOKEN },
+		]) {
+			const res = await deliver(body);
+			expect(res.status).toBe(400);
+			expect((await res.json()).error.code).toBe("invalid_body");
+		}
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
+	it("refuses an oversized body without reading it into Cloudflare or Sales", async () => {
+		const fetchMock = stubUpstreams(turnstileSays(true));
+
+		const res = await deliver({
+			order_id: "OMS-0427",
+			voucher_code: VOUCHER,
+			turnstileToken: TOKEN,
+			padding: "x".repeat(10_000),
+		});
+
+		expect(res.status).toBe(413);
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
 	it("refuses a token Cloudflare rejects, without calling Sales", async () => {
 		const fetchMock = stubUpstreams(turnstileSays(false, ["timeout-or-duplicate"]));
 

@@ -3,10 +3,10 @@
  *
  * One line per thing that happens, prefixed `[OMS:<scope>]` so a test run can be filtered by
  * typing `[OMS` into the browser console (or `grep "\[OMS"` on the server), and tagged with the
- * step number from the flow document (`OMS-Fonepoints-Flow.docx`) wherever there is one, so the
- * log reads against the flowchart:
+ * step number from the authentication flow chart (the handover documents in `docs/`) wherever
+ * there is one, so the log reads against it:
  *
- *   [OMS:auth] 12:01:02.345 step 6 · checking the session cookie (GET /api/session)
+ *   [OMS:auth] 12:01:02.345 step 8 · asking the portal for a token (reason: missing)
  *
  * **It never prints a credential.** Anything under a key that looks like a token, key, cookie or
  * password is replaced with `<redacted, N chars>` before it is logged (`redact`), and call sites

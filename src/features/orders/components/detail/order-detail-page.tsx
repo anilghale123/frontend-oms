@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { orderRoutes as orderRouteTitles } from "@/config/nav";
 import { ApiError } from "@/lib/api/client";
 import { toErrorMessage } from "@/lib/api/errors";
+import { decodePathSegment } from "@/lib/utils";
 import {
 	ASSIGN_RIDER_ENABLED,
 	DELIVERING_ENABLED,
@@ -37,7 +38,7 @@ const BACK_LABEL = `Back to ${orderRouteTitles.orderQueue.title}`;
  * Delivering is off too (`DELIVERING_ENABLED`) the page never mentions it: a ready order leads with
  * Mark delivered.
  */
-const NEXT_STEP: Record<OrderStatus, { title: string; description: string }> = {
+const ORDER_NEXT_STEP: Record<OrderStatus, { title: string; description: string }> = {
 	preparing: {
 		title: "Mark the order ready",
 		description: "Pack the item, then mark it ready for delivery.",
@@ -107,7 +108,7 @@ export function OrderDetailLayout({ children, placeholder = false }: OrderDetail
 	return (
 		<div className="-m-3 flex min-h-0 flex-1 md:-m-4">
 			<OrderListPanel
-				selectedId={decodeURIComponent(params.referenceId ?? "")}
+				selectedId={decodePathSegment(params.referenceId ?? "")}
 				placeholder={placeholder}
 				className="hidden lg:flex"
 			/>
@@ -186,6 +187,8 @@ export function OrderDetailPage({ referenceId, placeholder = false }: OrderDetai
 function OrderDetail({ order, back }: { order: Order; back: { href: string; label: string } }) {
 	const statusChange = useOrderStatusChange(order);
 	const action = primaryAction(order.status);
+	// The OMS id when the API sent one; otherwise the partner's, so the title is never blank.
+	const displayId = order.omsOrderId || order.referenceId;
 	const PrimaryIcon = !action
 		? undefined
 		: action.kind === "assign_rider"
@@ -193,7 +196,7 @@ function OrderDetail({ order, back }: { order: Order; back: { href: string; labe
 			: STATUS_ICON[action.to];
 
 	const nextStep = {
-		...NEXT_STEP[order.status],
+		...ORDER_NEXT_STEP[order.status],
 		// Delivered and failed orders are final: the bar only says so, with nothing to press.
 		actions: isFinalStatus(order.status) ? undefined : (
 			<>
@@ -225,11 +228,11 @@ function OrderDetail({ order, back }: { order: Order; back: { href: string; labe
 	return (
 		<>
 			<Page
-				title={order.omsOrderId}
+				title={displayId}
 				back={back}
 				badge={
 					<>
-						<CopyButton value={order.omsOrderId} label="order ID" />
+						<CopyButton value={displayId} label="order ID" />
 						<StatusBadge status={order.status} />
 					</>
 				}

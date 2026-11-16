@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronDown, List, Search } from "lucide-react";
+import { ChevronDown, ClipboardList, List, Search } from "lucide-react";
+import { EmptyState, ErrorState } from "@/components/feedback";
 import { Button, IconButton } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -15,6 +16,7 @@ import { Input, InputWrapper } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 
+import { toErrorMessage } from "@/lib/api/errors";
 import { ORDER_STATUS_LABELS, type Order } from "@/lib/domain";
 import { cn, formatOrderValue } from "@/lib/utils";
 import { useOrderRoutes } from "../../order-routes";
@@ -52,7 +54,7 @@ export function OrderListPanel({
 	const [filter, setFilter] = useState<OrderStatusFilter>("all");
 	const [query, setQuery] = useState("");
 	const q = useOrderSearch(query);
-	const { data, isLoading, isError, refetch } = useOrders(
+	const { data, isLoading, isError, isFetching, error, refetch } = useOrders(
 		{
 			q,
 			status: filter === "all" ? undefined : filter,
@@ -63,6 +65,8 @@ export function OrderListPanel({
 	);
 	const selectedRowRef = useRef<HTMLAnchorElement | null>(null);
 	const visible = data?.orders ?? [];
+	const loading = placeholder || isLoading;
+	const searching = Boolean(q) || filter !== "all";
 
 	useEffect(() => {
 		selectedRowRef.current?.scrollIntoView({ block: "nearest" });
@@ -125,23 +129,28 @@ export function OrderListPanel({
 			</div>
 
 			<ScrollArea className="min-h-0 flex-1">
-				{placeholder || isLoading ? (
+				{loading ? (
 					<div className="flex flex-col gap-2 p-3">
 						{Array.from({ length: 8 }, (_, i) => (
 							<Skeleton key={i} className="h-12 w-full rounded-md" />
 						))}
 					</div>
 				) : isError ? (
-					<div className="flex flex-col items-center gap-2 px-4 py-10 text-center text-sm text-fg-secondary">
-						Couldn’t load orders.
-						<Button variant="outline" color="neutral" size="28" onClick={() => void refetch()}>
-							Try again
-						</Button>
-					</div>
+					<ErrorState
+						title="Couldn’t load orders"
+						description={toErrorMessage(error)}
+						onRetry={() => void refetch()}
+						retrying={isFetching}
+						className="border-0 px-4"
+					/>
 				) : visible.length === 0 ? (
-					<p className="px-4 py-10 text-center text-sm text-fg-secondary">
-						No orders match this filter.
-					</p>
+					<EmptyState
+						variant="plain"
+						icon={ClipboardList}
+						title={searching ? "No orders match" : "No orders yet"}
+						description={searching ? "Try another status or search." : undefined}
+						className="px-4"
+					/>
 				) : (
 					<ul className="divide-y divide-border">
 						{visible.map((order) => (
@@ -156,9 +165,12 @@ export function OrderListPanel({
 				)}
 			</ScrollArea>
 
-			<div className="shrink-0 border-t border-border px-3 py-2 text-xs text-fg-secondary tabular-nums">
-				{visible.length} of {data?.total ?? 0} orders
-			</div>
+			{/* A count is only worth showing once there is one: not "0 of 0" while loading or failed. */}
+			{!loading && !isError && (
+				<div className="shrink-0 border-t border-border px-3 py-2 text-xs text-fg-secondary tabular-nums">
+					{visible.length} of {data?.total ?? 0} orders
+				</div>
+			)}
 		</aside>
 	);
 }

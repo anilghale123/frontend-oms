@@ -27,7 +27,7 @@ import { TurnstileWidget } from "./turnstile-widget";
 /** Why the last attempt failed, which decides what the rider is told to do next. */
 type FailureKind = "rejected" | "verification" | "connection";
 
-const NEXT_STEP: Record<FailureKind, string> = {
+const RIDER_NEXT_STEP: Record<FailureKind, string> = {
 	rejected: "Check the Order ID and the voucher code with the customer, then try again.",
 	verification: "Complete the security check again, then confirm delivery.",
 	connection: "Check your connection, then try again.",
@@ -153,7 +153,7 @@ export function DeliveryValidationForm() {
 					<Alert color="error" variant="soft">
 						<AlertContent>
 							<AlertTitle>{failure.message}</AlertTitle>
-							<AlertDescription>{NEXT_STEP[failure.kind]}</AlertDescription>
+							<AlertDescription>{RIDER_NEXT_STEP[failure.kind]}</AlertDescription>
 						</AlertContent>
 					</Alert>
 				)}

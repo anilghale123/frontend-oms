@@ -1,6 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
+import { decodePathSegment } from "@/lib/utils";
 import { OrderDetailLayout, OrderDetailPage } from "./detail/order-detail-page";
 import { OrderQueuePage } from "./queue/order-queue-page";
 
@@ -22,7 +23,7 @@ import { OrderQueuePage } from "./queue/order-queue-page";
  */
 export function OrderScreenSkeleton() {
 	const params = useParams<{ referenceId?: string }>();
-	const referenceId = params.referenceId ? decodeURIComponent(params.referenceId) : null;
+	const referenceId = params.referenceId ? decodePathSegment(params.referenceId) : null;
 
 	return (
 		<div inert className="flex min-h-0 flex-1 flex-col">

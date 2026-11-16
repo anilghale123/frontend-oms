@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import { Lock } from "lucide-react";
-import { EmptyState } from "@/components/feedback";
+import { OpenFromPortalState } from "@/features/shell";
 
 export const metadata: Metadata = { title: "Fonepoints OMS" };
 
@@ -12,11 +11,7 @@ export const metadata: Metadata = { title: "Fonepoints OMS" };
 export default function HomePage() {
 	return (
 		<main className="flex flex-1 flex-col justify-center p-4">
-			<EmptyState
-				icon={Lock}
-				title="OMS opens from the Fonepoints portal"
-				description="Sign in to Fonepoints Business and choose OMS. The portal is what grants this app access to your orders."
-			/>
+			<OpenFromPortalState />
 		</main>
 	);
 }

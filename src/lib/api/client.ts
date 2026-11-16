@@ -33,6 +33,8 @@ import { NO_SESSION_CODE } from "./contracts";
 import {
 	ApiError,
 	SESSION_LOST_CODE,
+	UNREADABLE_RESPONSE_CODE,
+	UNREADABLE_RESPONSE_MESSAGE,
 	codeFromBody,
 	fieldErrorsFromBody,
 	messageForStatus,
@@ -127,9 +129,18 @@ async function request<T>(
 		);
 	}
 
-	// 204 and other empty responses have no JSON to parse.
-	if (res.status === 204) return undefined as T;
-	return (await res.json()) as T;
+	// A success may come with no body at all (a 204, or a 200 the server left empty): that is still a
+	// success, and treating it as a failure would tell a rider whose delivery went through to try
+	// again. A body that is there but is not JSON is a failure with a message a person can read.
+	const text = await res.text().catch(() => "");
+	if (!text.trim()) return undefined as T;
+	try {
+		return JSON.parse(text) as T;
+	} catch (cause) {
+		throw new ApiError(UNREADABLE_RESPONSE_MESSAGE, res.status, UNREADABLE_RESPONSE_CODE, {
+			cause,
+		});
+	}
 }
 
 /** Parsed JSON when the body is JSON, the raw text when it is not, `null` when it is empty. */

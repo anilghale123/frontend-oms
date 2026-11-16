@@ -18,8 +18,8 @@ import { createHostChannel, type HostChannel } from "@/lib/host";
  * subscribed by the time the announcement goes out — which is what makes it impossible to miss the
  * reply. Moving `start()` into the render body, or into a child, breaks that.
  *
- * Everything is a no-op when OMS is not framed, so mounting this on the standalone dashboard costs
- * nothing.
+ * Everything is a no-op when OMS is not framed (a direct visit to `/embed/*`), so mounting it there
+ * costs nothing.
  */
 
 const HostChannelContext = createContext<HostChannel | null>(null);

@@ -22,11 +22,28 @@
 
 import { z } from "zod";
 import { trace, traceWarn } from "@/lib/debug";
+import { NO_STORE_HEADERS, isSameOrigin, jsonError, readJsonBody } from "../_shared";
 import { clearSessionCookie, setSessionCookie } from "./_cookie";
 
-const bodySchema = z.object({ token: z.string().trim().min(1) });
+/**
+ * Browsers drop a cookie larger than about 4096 bytes without saying so, and this route would then
+ * answer `{ ok: true }` for a session that was never stored. The limit leaves room for the cookie's
+ * name and attributes. Tokens are printable ASCII (JWT and opaque tokens alike), so anything else
+ * is refused rather than written into a header.
+ */
+const MAX_TOKEN_LENGTH = 3500;
 
-const NO_STORE = { "Cache-Control": "no-store" };
+const bodySchema = z.object({
+	token: z
+		.string()
+		.trim()
+		.min(1)
+		.max(MAX_TOKEN_LENGTH)
+		.regex(/^[\x21-\x7E]+$/),
+});
+
+/** The body is one token; anything much larger is not a handoff. */
+const MAX_BODY_BYTES = 4096;
 
 export async function POST(request: Request) {
 	// Same-origin only. The handoff is posted by this app's own page, so a cross-site caller has
@@ -37,19 +54,14 @@ export async function POST(request: Request) {
 			origin: request.headers.get("origin"),
 			expected: new URL(request.url).origin,
 		});
-		return Response.json(
-			{ error: { code: "forbidden", message: "Cross-origin request" } },
-			{ status: 403 },
-		);
+		return jsonError("forbidden", "Cross-origin request", 403);
 	}
 
-	const parsed = bodySchema.safeParse(await request.json().catch(() => null));
-	if (!parsed.success) {
-		trace("session", "✖ step 20 · POST /api/session refused: no token in the body (check F) → 400");
-		return Response.json(
-			{ error: { code: "invalid_body", message: "A token is required" } },
-			{ status: 400 },
-		);
+	const body = await readJsonBody(request, MAX_BODY_BYTES);
+	const parsed = body.ok ? bodySchema.safeParse(body.value) : null;
+	if (!parsed?.success) {
+		trace("session", "✖ step 20 · POST /api/session refused: no usable token in the body → 400");
+		return jsonError("invalid_body", "A valid token is required", 400);
 	}
 
 	await setSessionCookie(parsed.data.token);
@@ -62,7 +74,7 @@ export async function POST(request: Request) {
 			calledSales: false,
 		},
 	);
-	return Response.json({ ok: true }, { headers: NO_STORE });
+	return Response.json({ ok: true }, { headers: NO_STORE_HEADERS });
 }
 
 /**
@@ -76,29 +88,10 @@ export async function DELETE(request: Request) {
 			origin: request.headers.get("origin"),
 			expected: new URL(request.url).origin,
 		});
-		return Response.json(
-			{ error: { code: "forbidden", message: "Cross-origin request" } },
-			{ status: 403 },
-		);
+		return jsonError("forbidden", "Cross-origin request", 403);
 	}
 
 	await clearSessionCookie();
 	trace("session", "✔ step 31 · DELETE /api/session: oms_at cookie deleted");
-	return Response.json({ ok: true }, { headers: NO_STORE });
-}
-
-/**
- * True when the request came from a page on this origin.
- *
- * `Origin` is set by the browser on every POST and DELETE and cannot be forged by page script, so
- * comparing it to the request's own origin is a complete CSRF defence for these two routes. It is
- * needed because the session cookie is `SameSite=None` — necessary for the iframe, and it means
- * `SameSite` is doing no CSRF work.
- */
-function isSameOrigin(request: Request): boolean {
-	const origin = request.headers.get("origin");
-	// Absent on a same-origin non-browser caller (curl, a server-side fetch); those are not the
-	// confused-deputy case this guards against.
-	if (!origin) return true;
-	return origin === new URL(request.url).origin;
+	return Response.json({ ok: true }, { headers: NO_STORE_HEADERS });
 }

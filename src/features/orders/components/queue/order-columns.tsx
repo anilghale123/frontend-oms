@@ -2,7 +2,7 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "@/components/data-display";
-import { ORDER_STATUS_LABELS, type Order } from "@/lib/domain";
+import type { Order } from "@/lib/domain";
 import { formatOrderValue } from "@/lib/utils";
 import { CustomerCell } from "./customer-cell";
 import { ItemCell } from "./item-cell";
@@ -13,7 +13,6 @@ import { StatusBadge } from "../status-badge";
 /**
  * Order queue columns. OMS Order ID, customer, status and actions always show; Partner order ID is
  * hidden by default. Search, filtering and paging are done by the API, so columns do not sort.
- * `meta.export` drives CSV/Excel output.
  */
 export function createOrderColumns(): ColumnDef<Order, unknown>[] {
 	return [
@@ -30,43 +29,21 @@ export function createOrderColumns(): ColumnDef<Order, unknown>[] {
 			id: "customer",
 			accessorFn: (order) => order.customer.name || order.customer.contact,
 			enableHiding: false,
-			meta: {
-				label: "Customer",
-				export: [
-					{ label: "Customer", value: (order) => order.customer.name },
-					{ label: "Phone", value: (order) => order.customer.contact },
-					{ label: "Customer ID", value: (order) => order.customer.identifier },
-				],
-			},
+			meta: { label: "Customer" },
 			header: ({ column }) => <DataTableColumnHeader column={column} title="Customer" />,
 			cell: ({ row }) => <CustomerCell customer={row.original.customer} />,
 		},
 		{
 			id: "product",
 			accessorFn: (order) => order.items.map((item) => item.name).join(" "),
-			meta: {
-				label: "Product",
-				export: [
-					{
-						label: "Product",
-						value: (order) =>
-							order.items.map((item) => `${item.name} x${item.quantity}`).join("; "),
-					},
-				],
-			},
+			meta: { label: "Product" },
 			header: ({ column }) => <DataTableColumnHeader column={column} title="Product" />,
 			cell: ({ row }) => <ItemCell order={row.original} />,
 		},
 		{
 			id: "value",
 			accessorFn: (order) => formatOrderValue(order),
-			meta: {
-				label: "Value",
-				export: [
-					{ label: "Points", value: (order) => order.points },
-					{ label: "Cash (Rs)", value: (order) => order.amount },
-				],
-			},
+			meta: { label: "Value" },
 			header: ({ column }) => <DataTableColumnHeader column={column} title="Value" />,
 			cell: ({ row }) => (
 				<span className="whitespace-nowrap text-fg tabular-nums">
@@ -94,10 +71,7 @@ export function createOrderColumns(): ColumnDef<Order, unknown>[] {
 		{
 			accessorKey: "status",
 			enableHiding: false,
-			meta: {
-				label: "Status",
-				export: [{ label: "Status", value: (order) => ORDER_STATUS_LABELS[order.status] }],
-			},
+			meta: { label: "Status" },
 			header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
 			cell: ({ row }) => <StatusBadge status={row.original.status} />,
 		},
@@ -124,7 +98,7 @@ export function createOrderColumns(): ColumnDef<Order, unknown>[] {
 			id: "actions",
 			enableSorting: false,
 			enableHiding: false,
-			meta: { label: "Actions", className: "w-32", export: [] },
+			meta: { label: "Actions", className: "w-32" },
 			header: () => <span className="block text-center">Actions</span>,
 			// The status button centred, then "More actions" (View details) at the edge, so the menus
 			// line up down the column. Rows are not clickable.

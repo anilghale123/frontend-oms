@@ -1,17 +1,9 @@
 /**
  * Small formatting helpers for OMS screens. Keep pure — no React.
+ *
+ * There are no date formatters: the Sales API sends dates already formatted in Nepal time, and the
+ * screens show them as sent.
  */
-
-import { format, parseISO } from "date-fns";
-
-/** Formats an ISO timestamp for table / detail display. */
-export function formatDateTime(iso: string): string {
-	try {
-		return format(parseISO(iso), "dd MMM yyyy, HH:mm");
-	} catch {
-		return iso;
-	}
-}
 
 const wholeNumber = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
 const money = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2 });
@@ -35,15 +27,6 @@ export function formatOrderValue(order: { points: number | null; amount: number 
 	if (order.amount !== null && order.amount > 0) parts.push(formatRs(order.amount));
 	if (order.points !== null) parts.push(formatPoints(order.points));
 	return parts.join(" + ") || "—";
-}
-
-/** Formats an ISO timestamp as a date only, e.g. "28 Sep 2026". */
-export function formatDate(iso: string): string {
-	try {
-		return format(parseISO(iso), "dd MMM yyyy");
-	} catch {
-		return iso;
-	}
 }
 
 /** Up to two initials from a name, falling back to the first letter of `fallback`. */

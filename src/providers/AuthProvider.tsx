@@ -20,6 +20,7 @@ import {
 	onSessionLost,
 	rememberToken,
 	sessionEpoch,
+	storeSession,
 } from "@/lib/auth";
 import { trace } from "@/lib/debug";
 import type { GrantReason } from "@/lib/host";
@@ -84,14 +85,6 @@ const RENEW_COOLDOWN_MS = 60_000;
 
 /** Shown when OMS is opened anywhere but inside the portal's frame. */
 const DIRECT_VISIT_MESSAGE = "Open OMS from the Fonepoints Business portal.";
-
-/** `{ error: { message } }` from this app's session route, when the body has one. */
-async function errorMessage(res: Response): Promise<string | undefined> {
-	const body = (await res.json().catch(() => null)) as {
-		error?: { message?: string };
-	} | null;
-	return body?.error?.message;
-}
 
 export interface AuthState {
 	status: AuthStatus;
@@ -163,6 +156,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
 		exchanging.current = false;
 		awaitingGrant.current = false;
 		reportedExisting.current = false;
+		// The cooldown stops OMS asking the portal again by itself. A press of the button is the
+		// merchant asking, so it must not be held back by it: without this, the next 401 fell inside
+		// the same minute and showed the same error without ever asking the portal. Still no loop,
+		// since each retry is one press.
+		signedInAt.current = 0;
 		setReason(null);
 		setReasonKind(null);
 		// Open the screens again; their first request decides what happens next.
@@ -200,17 +198,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
 				token,
 			});
 			try {
-				const res = await fetch("/api/session", {
-					method: "POST",
-					headers: { "content-type": "application/json" },
-					body: JSON.stringify({ token }),
-				});
+				const stored = await storeSession(token);
 
-				if (!res.ok) {
+				if (!stored.ok) {
 					exchanging.current = false;
 					forgetToken();
-					trace("auth", `✖ step 20 · the server refused to store it: HTTP ${res.status}`);
-					fail("failure", (await errorMessage(res)) || "Couldn't start the OMS session.");
+					trace("auth", `✖ step 20 · the server refused to store it: HTTP ${stored.status}`);
+					fail("failure", stored.message || "Couldn't start the OMS session.");
 					return false;
 				}
 

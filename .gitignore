@@ -51,3 +51,5 @@ next-env.d.ts
 
 .md
 /md
+# Personal VS Code multi-root workspaces
+*.code-workspace

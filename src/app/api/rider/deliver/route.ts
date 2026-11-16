@@ -20,7 +20,7 @@
 
 import { z } from "zod";
 import { trace, traceWarn } from "@/lib/debug";
-import { RIDER_VERIFICATION_FAILED } from "@/lib/api/contracts";
+import { RIDER_FIELD_MAX_LENGTH, RIDER_VERIFICATION_FAILED } from "@/lib/api/contracts";
 import {
 	SALES_CONFIG_PROBLEM,
 	SALES_RIDER_API,
@@ -30,23 +30,30 @@ import {
 	UPSTREAM_TIMEOUT_MS,
 	salesUnreachableMessage,
 } from "@/config/server-env";
+import { NO_STORE_HEADERS, isSameOrigin, jsonError as error, readJsonBody } from "../../_shared";
 
+/**
+ * The endpoint takes no sign-in, so its fields are bounded: an Order ID and a voucher code are
+ * short, and nothing longer is worth sending on to Sales.
+ */
 const bodySchema = z.object({
-	order_id: z.string().trim().min(1),
-	voucher_code: z.string().trim().min(1),
+	order_id: z.string().trim().min(1).max(RIDER_FIELD_MAX_LENGTH),
+	voucher_code: z.string().trim().min(1).max(RIDER_FIELD_MAX_LENGTH),
 	// Cloudflare's tokens are at most 2048 characters.
 	turnstileToken: z.string().min(1).max(2048),
 });
 
-const NO_STORE = { "Cache-Control": "no-store" };
+/** Two short fields and a Turnstile token fit well inside this. */
+const MAX_BODY_BYTES = 4096;
 
 const VERIFICATION_FAILED_MESSAGE = "Verification failed. Try again.";
 
 export async function POST(request: Request) {
 	// Same-origin only: the rider page posts here, and nothing else has a reason to.
-	const origin = request.headers.get("origin");
-	if (origin && origin !== new URL(request.url).origin) {
-		traceWarn("rider", "✖ POST /api/rider/deliver refused: cross-origin", { origin });
+	if (!isSameOrigin(request)) {
+		traceWarn("rider", "✖ POST /api/rider/deliver refused: cross-origin", {
+			origin: request.headers.get("origin"),
+		});
 		return error("forbidden", "Cross-origin request", 403);
 	}
 
@@ -57,7 +64,13 @@ export async function POST(request: Request) {
 		return error("turnstile_not_configured", TURNSTILE_CONFIG_PROBLEM ?? "", 503);
 	}
 
-	const parsed = bodySchema.safeParse(await request.json().catch(() => null));
+	const body = await readJsonBody(request, MAX_BODY_BYTES);
+	if (!body.ok) {
+		return body.status === 413
+			? error("body_too_large", "The request is too large.", 413)
+			: error("invalid_body", "Enter the Order ID and the voucher code.", 400);
+	}
+	const parsed = bodySchema.safeParse(body.value);
 	if (!parsed.success) {
 		const onlyToken = parsed.error.issues.every((issue) => issue.path[0] === "turnstileToken");
 		return onlyToken
@@ -95,7 +108,7 @@ export async function POST(request: Request) {
 	return new Response(text || null, {
 		status: upstream.status,
 		headers: {
-			...NO_STORE,
+			...NO_STORE_HEADERS,
 			"content-type": upstream.headers.get("content-type") ?? "application/json",
 		},
 	});
@@ -175,8 +188,4 @@ function clientIp(request: Request): string | null {
 
 function isTimeout(cause: unknown): boolean {
 	return cause instanceof DOMException && cause.name === "TimeoutError";
-}
-
-function error(code: string, message: string, status: number) {
-	return Response.json({ error: { code, message } }, { status, headers: NO_STORE });
 }

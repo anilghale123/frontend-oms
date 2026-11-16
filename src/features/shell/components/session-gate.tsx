@@ -1,9 +1,9 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Lock } from "lucide-react";
-import { EmptyState, ErrorState } from "@/components/feedback";
+import { ErrorState } from "@/components/feedback";
 import { useAuth } from "@/providers/AuthProvider";
+import { OpenFromPortalState } from "./open-from-portal-state";
 
 export interface SessionGateProps {
 	children: ReactNode;
@@ -62,11 +62,7 @@ export function SessionGate({ children, fallback }: SessionGateProps) {
 	return (
 		<div className="flex min-h-96 flex-1 flex-col justify-center p-4">
 			{isDirectVisit ? (
-				<EmptyState
-					icon={Lock}
-					title="OMS opens from the Fonepoints portal"
-					description="Sign in to Fonepoints Business and choose OMS. The portal is what grants this app access to your orders."
-				/>
+				<OpenFromPortalState />
 			) : (
 				<ErrorState
 					title="Couldn’t start your OMS session"
