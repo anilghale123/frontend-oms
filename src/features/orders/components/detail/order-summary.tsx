@@ -14,8 +14,8 @@ const PRODUCT_TYPE_LABELS: Record<OrderItem["productType"], string> = {
 };
 
 /**
- * Items card: each ordered product (name, type, quantity, product ID), then what the customer
- * paid — points, plus cash for `points_money` orders.
+ * Items card: each ordered product (name, type, quantity, product ID, and when it was redeemed),
+ * then what the customer paid — points, plus cash for `points_money` orders.
  */
 export function OrderSummary({ order }: OrderSummaryProps) {
 	const count = order.items.length;
@@ -87,6 +87,10 @@ function ItemRow({ item }: { item: OrderItem }) {
 					</span>
 					{item.productId && <span className="tabular-nums">{item.productId}</span>}
 				</div>
+				{/* Nepal time, formatted by the server; shown as it is. */}
+				{item.redeemedDate && (
+					<p className="text-xs text-fg-secondary tabular-nums">Redeemed {item.redeemedDate}</p>
+				)}
 			</div>
 		</li>
 	);

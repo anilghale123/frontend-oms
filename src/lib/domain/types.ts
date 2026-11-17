@@ -35,6 +35,11 @@ export interface OrderItem {
 	/** e.g. "pcs". Empty when the partner sent none. */
 	unitName: string;
 	productType: ProductType;
+	/**
+	 * When the customer redeemed it (`additional_info.redeemed_date`), Nepal time, already
+	 * formatted by the server ("2026-10-27 18:07:52"). Shown as it is; empty when not sent.
+	 */
+	redeemedDate: string;
 }
 
 /** The merchant the order belongs to — always the signed-in one. */
@@ -53,6 +58,11 @@ export interface OrderCustomer {
 	contact: string;
 	/** One line, whatever shape the API sent. Empty when there is none (service-only orders). */
 	deliveryAddress: string;
+	/**
+	 * What the customer filled in on the redeem form (`customer_form_data`), as label/value pairs
+	 * in the order sent. Labels come from the partner. Empty when the API sent none.
+	 */
+	formData: ExtraField[];
 	/** Any other keys the partner sent. */
 	extra: ExtraField[];
 }

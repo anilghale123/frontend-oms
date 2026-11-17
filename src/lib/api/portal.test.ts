@@ -48,6 +48,7 @@ describe("toOrder", () => {
 			name: "John Doe",
 			contact: "9812345678",
 			deliveryAddress: "Pulchok",
+			formData: [],
 			extra: [],
 		});
 		expect(order.items[0]).toEqual({
@@ -56,6 +57,7 @@ describe("toOrder", () => {
 			quantity: 1,
 			unitName: "pcs",
 			productType: "goods",
+			redeemedDate: "",
 		});
 		expect(order).toMatchObject({
 			status: "delivering",
@@ -70,6 +72,48 @@ describe("toOrder", () => {
 			status: "delivering",
 			date: "2026-10-10 09:15",
 			remarks: "Rider Ram is on the way",
+		});
+	});
+
+	it("reads the redeem form answers and the item's redeemed date", () => {
+		const order = toOrder({
+			...EXAMPLE,
+			customer_detail: {
+				name: "Freddy",
+				contact: "9803443344",
+				delivery_address: "Pulchowk",
+				customer_form_data: [
+					{ label: "Name", value: "Freddy" },
+					{ label: "Contact", value: "9803443344" },
+					{ label: "Delivery Address", value: "Pulchowk" },
+					{ label: "Landmark", value: "" },
+					{ label: "", value: "dropped: no label" },
+					"not an entry" as unknown as { label: string; value: unknown },
+				],
+			},
+			items: [
+				{
+					product_id: "SKU-7781",
+					name: "phone",
+					qty: 1,
+					unit_name: null,
+					product_type: "service",
+					additional_info: { redeemed_date: "2026-10-27 18:07:52" },
+				},
+			],
+		});
+		expect(order.customer.formData).toEqual([
+			{ label: "Name", value: "Freddy" },
+			{ label: "Contact", value: "9803443344" },
+			{ label: "Delivery Address", value: "Pulchowk" },
+			{ label: "Landmark", value: "" },
+		]);
+		// The form is its own field, not flattened into the "other keys" list.
+		expect(order.customer.extra).toEqual([]);
+		expect(order.items[0]).toMatchObject({
+			unitName: "",
+			productType: "service",
+			redeemedDate: "2026-10-27 18:07:52",
 		});
 	});
 

@@ -8,10 +8,18 @@ export interface OrderCustomerDetailsProps {
 }
 
 /**
- * Customer section body: what the partner sent about the customer — name, phone, the partner's
- * customer ID, and any other attributes it included. Read-only.
+ * Customer section body: the customer's name and phone, then what they filled in on the redeem
+ * form (`customer.formData`, labels as the partner sent them), then the partner's customer ID and
+ * any other attributes it included. Read-only.
+ *
+ * Form answers that repeat the name or phone already shown at the top are left out of the list,
+ * so the section doesn't say the same thing twice. A blank answer reads "Not provided".
  */
 export function OrderCustomerDetails({ customer }: OrderCustomerDetailsProps) {
+	const shown = new Set([customer.name, customer.contact].filter(Boolean));
+	const formData = customer.formData.filter((field) => !shown.has(field.value));
+	const hasFields = formData.length > 0 || customer.identifier || customer.extra.length > 0;
+
 	return (
 		<div className="flex flex-col gap-4">
 			<div className="flex min-w-0 items-center gap-3">
@@ -27,16 +35,25 @@ export function OrderCustomerDetails({ customer }: OrderCustomerDetailsProps) {
 					</span>
 				</div>
 			</div>
-			<dl className="grid gap-3">
-				<DetailField label="Customer ID" numeric>
-					{customer.identifier || <EmptyValue />}
-				</DetailField>
-				{customer.extra.map((field) => (
-					<DetailField key={field.label} label={field.label}>
-						{field.value}
-					</DetailField>
-				))}
-			</dl>
+			{hasFields && (
+				<dl className="grid gap-3">
+					{formData.map((field, index) => (
+						<DetailField key={`${field.label}-${index}`} label={field.label}>
+							{field.value || <EmptyValue />}
+						</DetailField>
+					))}
+					{customer.identifier && (
+						<DetailField label="Customer ID" numeric>
+							{customer.identifier}
+						</DetailField>
+					)}
+					{customer.extra.map((field) => (
+						<DetailField key={field.label} label={field.label}>
+							{field.value}
+						</DetailField>
+					))}
+				</dl>
+			)}
 		</div>
 	);
 }

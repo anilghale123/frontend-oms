@@ -7,6 +7,8 @@
  * - `customer_detail.delivery_address` is a string **or** an object — flattened to one line.
  * - `customer_detail` and `rider` carry whatever keys the partner sent. The known ones become
  *   fields; the rest are kept as `extra`, with readable labels, so they can still be shown.
+ * - `customer_detail.customer_form_data` (the redeem form's `{ label, value }` answers) becomes
+ *   `customer.formData`; an item's `additional_info.redeemed_date` becomes `item.redeemedDate`.
  * - `redeem_points` and `amount` are numbers or `null`; a numeric string is accepted too, since a
  *   decimal field serialised as a string is the usual way that promise gets broken.
  * - Dates are Nepal-time strings the server already formatted, so they pass through untouched.
@@ -68,7 +70,13 @@ export function toOrderList(wire: PortalList<PortalOrder>): OrderListResult {
 	};
 }
 
-const CUSTOMER_KEYS = new Set(["identifier", "name", "contact", "delivery_address"]);
+const CUSTOMER_KEYS = new Set([
+	"identifier",
+	"name",
+	"contact",
+	"delivery_address",
+	"customer_form_data",
+]);
 
 function toCustomer(detail: PortalOrder["customer_detail"]): OrderCustomer {
 	const record = isRecord(detail) ? detail : {};
@@ -77,8 +85,24 @@ function toCustomer(detail: PortalOrder["customer_detail"]): OrderCustomer {
 		name: text(record.name),
 		contact: text(record.contact),
 		deliveryAddress: flattenAddress(record.delivery_address),
+		formData: toFormData(record.customer_form_data),
 		extra: extraFields(record, CUSTOMER_KEYS),
 	};
+}
+
+/**
+ * `customer_form_data` → label/value pairs, in the order sent. An entry without a label is
+ * dropped (there is nothing to call it); one without a value is kept with an empty value, so the
+ * screen can say it was left blank.
+ */
+function toFormData(value: unknown): ExtraField[] {
+	if (!Array.isArray(value)) return [];
+	return value.flatMap((entry) => {
+		if (!isRecord(entry)) return [];
+		const label = text(entry.label);
+		if (!label) return [];
+		return [{ label, value: displayValue(entry.value) }];
+	});
 }
 
 const RIDER_NAME_KEYS = ["name", "full_name"];
@@ -98,12 +122,14 @@ function toRider(rider: PortalOrder["rider"]): OrderRider | null {
 
 function toItem(item: PortalOrderItem): OrderItem {
 	const quantity = numberOrNull(item?.qty);
+	const info: unknown = item?.additional_info;
 	return {
 		productId: text(item?.product_id),
 		name: text(item?.name),
 		quantity: quantity ?? 1,
 		unitName: text(item?.unit_name),
 		productType: item?.product_type === "service" ? "service" : "goods",
+		redeemedDate: isRecord(info) ? text(info.redeemed_date) : "",
 	};
 }
 
@@ -127,9 +153,14 @@ export function flattenAddress(value: unknown): string {
 function extraFields(record: Record<string, unknown>, known: Set<string>): ExtraField[] {
 	return Object.entries(record).flatMap(([key, value]) => {
 		if (known.has(key)) return [];
-		const shown = typeof value === "boolean" ? (value ? "Yes" : "No") : flattenAddress(value);
+		const shown = displayValue(value);
 		return shown ? [{ label: humanizeKey(key), value: shown }] : [];
 	});
+}
+
+/** A partner value as one line of text: "Yes"/"No" for booleans, nested values joined. */
+function displayValue(value: unknown): string {
+	return typeof value === "boolean" ? (value ? "Yes" : "No") : flattenAddress(value);
 }
 
 /** `vehicle_number` / `vehicleNumber` → "Vehicle number". */

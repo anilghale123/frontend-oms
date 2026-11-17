@@ -31,22 +31,30 @@ export interface PortalMerchantDetail {
 	pan?: string;
 }
 
+/** One answer from the customer's redeem form. The partner chooses the labels. */
+export interface PortalCustomerFormField {
+	label: string;
+	value: unknown;
+}
+
 /**
  * Always has `delivery_address`, a string **or** an object. The other keys are whatever the partner
- * sent — usually `identifier`, `name` and `contact`.
+ * sent — usually `name`, `contact`, `identifier` and `customer_form_data`.
  */
 export type PortalCustomerDetail = Record<string, unknown> & {
 	delivery_address?: string | Record<string, unknown> | null;
+	customer_form_data?: PortalCustomerFormField[] | null;
 };
 
 export interface PortalOrderItem {
 	product_id: string;
 	name: string;
 	qty: number;
-	unit_name: string;
+	unit_name: string | null;
 	/** `goods` or `service`. */
 	product_type: string;
-	additional_info: unknown;
+	/** Partner-defined. Known key: `redeemed_date` ("2026-10-27 18:07:52", Nepal time). */
+	additional_info: { redeemed_date?: string | null } | Record<string, unknown> | null;
 }
 
 export interface PortalOrderLog {
