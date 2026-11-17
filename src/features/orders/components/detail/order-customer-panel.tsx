@@ -8,17 +8,27 @@ export interface OrderCustomerDetailsProps {
 }
 
 /**
- * Customer section body: the customer's name and phone, then what they filled in on the redeem
- * form (`customer.formData`, labels as the partner sent them), then the partner's customer ID and
- * any other attributes it included. Read-only.
+ * Customer section body. The redeem form (`customer.formData`) is the source: whatever the partner
+ * sent, including name and phone, is shown as label/value rows in the order sent, labels as sent.
+ * Nothing is guessed, renamed or filtered, and a blank answer reads "Not provided".
  *
- * Form answers that repeat the name or phone already shown at the top are left out of the list,
- * so the section doesn't say the same thing twice. A blank answer reads "Not provided".
+ * Only when the API sent no form data does it fall back to the avatar with name and phone, the
+ * partner's customer ID and any other attributes. Read-only.
  */
 export function OrderCustomerDetails({ customer }: OrderCustomerDetailsProps) {
-	const shown = new Set([customer.name, customer.contact].filter(Boolean));
-	const formData = customer.formData.filter((field) => !shown.has(field.value));
-	const hasFields = formData.length > 0 || customer.identifier || customer.extra.length > 0;
+	if (customer.formData.length > 0) {
+		return (
+			<dl className="grid gap-3">
+				{customer.formData.map((field, index) => (
+					<DetailField key={`${field.label}-${index}`} label={field.label}>
+						{field.value || <EmptyValue />}
+					</DetailField>
+				))}
+			</dl>
+		);
+	}
+
+	const hasFields = customer.identifier || customer.extra.length > 0;
 
 	return (
 		<div className="flex flex-col gap-4">
@@ -37,11 +47,6 @@ export function OrderCustomerDetails({ customer }: OrderCustomerDetailsProps) {
 			</div>
 			{hasFields && (
 				<dl className="grid gap-3">
-					{formData.map((field, index) => (
-						<DetailField key={`${field.label}-${index}`} label={field.label}>
-							{field.value || <EmptyValue />}
-						</DetailField>
-					))}
 					{customer.identifier && (
 						<DetailField label="Customer ID" numeric>
 							{customer.identifier}

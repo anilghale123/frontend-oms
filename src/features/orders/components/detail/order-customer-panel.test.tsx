@@ -1,5 +1,5 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
 import type { OrderCustomer } from "@/lib/domain";
 import { OrderCustomerDetails } from "./order-customer-panel";
 
@@ -18,15 +18,27 @@ const CUSTOMER: OrderCustomer = {
 };
 
 describe("OrderCustomerDetails", () => {
-	it("lists the redeem form answers without repeating the name and phone", () => {
+	afterEach(cleanup);
+
+	it("shows every form answer as sent, including name and phone, with no avatar header", () => {
 		render(<OrderCustomerDetails customer={CUSTOMER} />);
-		expect(screen.getAllByText("Freddy")).toHaveLength(1);
-		expect(screen.queryByText("Contact")).toBeNull();
+		expect(screen.getByText("Name")).toBeTruthy();
+		expect(screen.getByText("Freddy")).toBeTruthy();
+		expect(screen.getByText("Contact")).toBeTruthy();
+		expect(screen.getByText("9803443344")).toBeTruthy();
 		expect(screen.getByText("Delivery Address")).toBeTruthy();
-		expect(screen.getByText("Pulchowk")).toBeTruthy();
 		expect(screen.getByText("Landmark")).toBeTruthy();
 		expect(screen.getByText("Not provided")).toBeTruthy();
-		// No customer ID was sent, so there is no empty "Customer ID" row.
 		expect(screen.queryByText("Customer ID")).toBeNull();
+	});
+
+	it("falls back to the avatar, name, phone and customer ID when there is no form data", () => {
+		render(
+			<OrderCustomerDetails
+				customer={{ ...CUSTOMER, identifier: "FPU-1", formData: [] }}
+			/>,
+		);
+		expect(screen.getByText("Freddy")).toBeTruthy();
+		expect(screen.getByText("Customer ID")).toBeTruthy();
 	});
 });
