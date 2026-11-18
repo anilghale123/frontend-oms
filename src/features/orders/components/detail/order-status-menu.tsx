@@ -22,9 +22,9 @@ export interface OrderStatusMenuProps {
 }
 
 /**
- * "Change status": the statuses ahead of the current one, and Failed (`otherStatuses`). It only
- * moves forward: an order never goes back to an earlier status, and delivered and failed orders
- * have no menu. While Assign rider is on, Delivering opens it instead of changing the status
+ * "Change status": the other merchant statuses (Preparing, Ready for delivery, Delivering), in
+ * either direction, and Failed (`otherStatuses`). Never Delivered, which the rider and backend set;
+ * delivered and failed orders have no menu. While Assign rider is on, Delivering opens it instead of changing the status
  * directly, so the rider is recorded.
  */
 export function OrderStatusMenu({ status, onSelect, disabled, prominent }: OrderStatusMenuProps) {

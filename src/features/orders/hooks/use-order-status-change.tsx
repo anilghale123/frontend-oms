@@ -33,7 +33,7 @@ export interface OrderStatusChange {
  * page behave the same:
  *
  * - `delivering` goes through Assign rider, so the rider is recorded;
- * - Mark delivered, Mark failed and any change away from Delivered or Failed are confirmed first,
+ * - Mark failed and any change away from Delivered or Failed are confirmed first,
  *   because the customer sees every change (`needsConfirmation`);
  * - anything else is a plain status change.
  *

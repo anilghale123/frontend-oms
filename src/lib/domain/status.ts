@@ -13,13 +13,16 @@ export const ORDER_STATUS_SEQUENCE: OrderStatus[] = [
 export const ORDER_STATUSES: OrderStatus[] = [...ORDER_STATUS_SEQUENCE, "failed"];
 
 /**
- * Whether the screens offer Delivering. **Off for now**: the status filters, the "Change status"
- * menu and the fulfillment tracker leave it out, and a ready order leads with Mark delivered, so
- * the flow is Preparing → Ready for delivery → Delivered. An order the API reports as delivering
- * still shows as Delivering everywhere (badge, tracker, its filter is simply not offered). Set this
- * to `true` to bring Delivering back everywhere at once.
+ * Whether the screens offer Delivering. **On**: the status filters, the "Change status" menu and
+ * the fulfillment tracker all include it. Set this to `false` to hide it everywhere at once.
  */
-export const DELIVERING_ENABLED = false;
+export const DELIVERING_ENABLED = true;
+
+/**
+ * The statuses a merchant may set by hand, and move freely between (forwards or back). Delivered
+ * is not one of them: it is only ever set from the rider's confirmation and the backend's response.
+ */
+export const MERCHANT_STATUSES: OrderStatus[] = ["preparing", "ready_for_delivery", "delivering"];
 
 /** The statuses the screens offer: in the status filters and the "Change status" menu. */
 export const OFFERED_STATUSES: OrderStatus[] = ORDER_STATUSES.filter(
@@ -72,19 +75,16 @@ export type PrimaryAction =
 const PRIMARY_ACTIONS = {
 	preparing: { kind: "status", to: "ready_for_delivery", label: "Mark ready" },
 	ready_for_delivery: { kind: "assign_rider", label: "Assign rider" },
-	delivering: { kind: "status", to: "delivered", label: "Mark delivered" },
+	delivering: null,
 	delivered: null,
 	failed: null,
 } as const satisfies Record<OrderStatus, PrimaryAction | null>;
 
-/** A ready order's step while Delivering is not offered: straight to delivered. */
-const MARK_DELIVERED: PrimaryAction = { kind: "status", to: "delivered", label: "Mark delivered" };
-
 /**
- * The primary action for an order in `status`; `null` at the end of the flow. A ready order leads
- * with Assign rider; with nothing while Assign rider is off (`ASSIGN_RIDER_ENABLED`), since
- * Delivering is then a plain change from the menu; and with Mark delivered while Delivering itself
- * is off (`DELIVERING_ENABLED`), since Assign rider moves an order to Delivering.
+ * The primary action for an order in `status`; `null` when there is none. A ready order leads with
+ * Assign rider; with nothing while Assign rider is off (`ASSIGN_RIDER_ENABLED`) or Delivering is
+ * off, since Delivering is then a plain change from the menu. There is no Mark delivered: delivery
+ * is confirmed by the rider and the backend, never by the merchant.
  */
 export function primaryAction(
 	status: OrderStatus,
@@ -92,8 +92,7 @@ export function primaryAction(
 ): PrimaryAction | null {
 	const action = PRIMARY_ACTIONS[status];
 	if (action?.kind === "assign_rider") {
-		if (!delivering) return MARK_DELIVERED;
-		if (!assignRider) return null;
+		if (!delivering || !assignRider) return null;
 	}
 	return action;
 }
@@ -112,19 +111,19 @@ export function fulfillmentSequence(
 }
 
 /**
- * The statuses the "Change status" menu offers: only forward. An order moves down the happy path
- * (`ORDER_STATUS_SEQUENCE`) and never back — not from Ready for delivery to Preparing, not from
- * Delivered to anything earlier — and may be marked Failed until it is final. `delivered` and
- * `failed` end the flow, so they offer nothing. The server would accept any move (`src/api.md`);
- * this is the UI's rule. Delivering is left out while it is off (`DELIVERING_ENABLED`).
+ * The statuses the "Change status" menu offers: the other merchant statuses (Preparing, Ready for
+ * delivery, Delivering) in either direction, and Failed. Never Delivered: that comes from the rider's
+ * confirmation and the backend. `delivered` and `failed` end the flow, so they offer nothing. The
+ * server would accept any move (`src/api.md`); this is the UI's rule.
  */
 export function otherStatuses(
 	status: OrderStatus,
 	{ delivering = DELIVERING_ENABLED }: RiderRuleOptions = {},
 ): OrderStatus[] {
 	if (isFinalStatus(status)) return [];
-	const ahead = ORDER_STATUS_SEQUENCE.slice(ORDER_STATUS_SEQUENCE.indexOf(status) + 1);
-	return [...ahead, "failed" as const].filter((next) => delivering || next !== "delivering");
+	return [...MERCHANT_STATUSES, "failed" as const].filter(
+		(next) => next !== status && (delivering || next !== "delivering"),
+	);
 }
 
 /**
@@ -146,9 +145,9 @@ export function isFinalStatus(status: OrderStatus): boolean {
 
 /**
  * Whether the merchant confirms a change first. Every change is shown to the customer in their
- * order history, so the guide asks for a confirmation before Mark failed, Mark delivered, and any
- * change away from `delivered` or `failed` (which should only ever correct a mistake).
+ * order history, so the guide asks for a confirmation before Mark failed and any change away from
+ * `delivered` or `failed` (which should only ever correct a mistake).
  */
 export function needsConfirmation(from: OrderStatus, to: OrderStatus): boolean {
-	return to === "delivered" || to === "failed" || isFinalStatus(from);
+	return to === "failed" || isFinalStatus(from);
 }

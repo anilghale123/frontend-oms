@@ -23,14 +23,6 @@ interface Copy {
 /** What the dialog says for a move from `from` to `to`, on order `omsOrderId`. */
 function copyFor(from: OrderStatus, to: OrderStatus, omsOrderId: string): Copy {
 	const history = "The customer sees this in their order history.";
-	if (to === "delivered") {
-		return {
-			title: `Mark ${omsOrderId} delivered?`,
-			description: `Only do this once the customer has the order. ${history}`,
-			action: "Mark delivered",
-			color: "primary",
-		};
-	}
 	if (to === "failed") {
 		return {
 			title: `Mark ${omsOrderId} failed?`,
@@ -62,7 +54,7 @@ export interface ConfirmStatusDialogProps {
 
 /**
  * "Are you sure" before a status change the guide asks to confirm (`needsConfirmation` in
- * `@/lib/domain`): Mark delivered, Mark failed, and any change away from Delivered or Failed —
+ * `@/lib/domain`): Mark failed and any change away from Delivered or Failed —
  * every change is shown to the customer. The dialog closes however the call ends: a failure has
  * already been shown, and the order reloaded on a conflict.
  */

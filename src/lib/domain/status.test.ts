@@ -21,8 +21,7 @@ const withRider = { assignRider: true, delivering: true };
 const withDelivering = { assignRider: false, delivering: true };
 
 describe("primaryAction", () => {
-	it("matches the guide's table of primary actions per status", () => {
-		// src/api.md, "Status flow and actions per status".
+	it("leads a preparing order with Mark ready", () => {
 		expect(primaryAction("preparing", withRider)).toMatchObject({
 			kind: "status",
 			to: "ready_for_delivery",
@@ -30,40 +29,25 @@ describe("primaryAction", () => {
 		expect(primaryAction("ready_for_delivery", withRider)).toMatchObject({
 			kind: "assign_rider",
 		});
-		expect(primaryAction("delivering", withRider)).toMatchObject({
-			kind: "status",
-			to: "delivered",
-		});
+	});
+
+	it("never offers Mark delivered: the rider and backend mark delivery", () => {
+		for (const status of ORDER_STATUSES) {
+			for (const options of [withRider, withDelivering, {}]) {
+				const action = primaryAction(status, options);
+				if (action?.kind === "status") expect(action.to).not.toBe("delivered");
+			}
+		}
+		expect(primaryAction("delivering", withRider)).toBeNull();
 		expect(primaryAction("delivered", withRider)).toBeNull();
 		expect(primaryAction("failed", withRider)).toBeNull();
 	});
 
-	it("leads a ready order with nothing while only Assign rider is off", () => {
-		expect(primaryAction("ready_for_delivery", withDelivering)).toBeNull();
-		// Everything else is unchanged.
-		expect(primaryAction("preparing", withDelivering)).toMatchObject({
-			kind: "status",
-			to: "ready_for_delivery",
-		});
-		expect(primaryAction("delivering", withDelivering)).toMatchObject({
-			kind: "status",
-			to: "delivered",
-		});
-	});
-
-	it("leads a ready order with Mark delivered while Delivering is off", () => {
+	it("leads a ready order with nothing while Assign rider is off", () => {
 		expect(ASSIGN_RIDER_ENABLED).toBe(false);
-		expect(DELIVERING_ENABLED).toBe(false);
-		expect(primaryAction("ready_for_delivery")).toMatchObject({
-			kind: "status",
-			to: "delivered",
-			label: "Mark delivered",
-		});
-		// Assign rider moves an order to Delivering, so it is not offered either.
-		expect(primaryAction("ready_for_delivery", { assignRider: true })).toMatchObject({
-			kind: "status",
-			to: "delivered",
-		});
+		expect(DELIVERING_ENABLED).toBe(true);
+		expect(primaryAction("ready_for_delivery")).toBeNull();
+		expect(primaryAction("ready_for_delivery", withDelivering)).toBeNull();
 		expect(primaryAction("preparing")).toMatchObject({ kind: "status", to: "ready_for_delivery" });
 	});
 
@@ -73,40 +57,31 @@ describe("primaryAction", () => {
 			if (action) expect(action.label).toBeTruthy();
 		}
 	});
-
-	it("walks the whole happy path, with Assign rider standing in for delivering", () => {
-		for (let i = 0; i < ORDER_STATUS_SEQUENCE.length - 1; i += 1) {
-			const action = primaryAction(ORDER_STATUS_SEQUENCE[i], withRider);
-			const next = ORDER_STATUS_SEQUENCE[i + 1];
-			if (action?.kind === "status") expect(action.to).toBe(next);
-			else expect(goesThroughAssignRider(next, withRider)).toBe(true);
-		}
-	});
 });
 
 describe("otherStatuses", () => {
-	it("only moves forward, and may fail an order until it is final", () => {
-		// The server accepts any status from any status; the screens never go back.
+	it("moves freely between the merchant statuses, and may fail an order", () => {
 		expect(otherStatuses("preparing", withRider)).toEqual([
 			"ready_for_delivery",
 			"delivering",
-			"delivered",
 			"failed",
 		]);
 		expect(otherStatuses("ready_for_delivery", withRider)).toEqual([
+			"preparing",
 			"delivering",
-			"delivered",
 			"failed",
 		]);
-		expect(otherStatuses("delivering", withRider)).toEqual(["delivered", "failed"]);
+		expect(otherStatuses("delivering", withRider)).toEqual([
+			"preparing",
+			"ready_for_delivery",
+			"failed",
+		]);
 	});
 
-	it("never offers an earlier status", () => {
-		for (const status of ORDER_STATUS_SEQUENCE) {
-			const here = ORDER_STATUS_SEQUENCE.indexOf(status);
-			for (const next of otherStatuses(status, withRider)) {
-				if (next !== "failed") expect(ORDER_STATUS_SEQUENCE.indexOf(next)).toBeGreaterThan(here);
-			}
+	it("never offers Delivered, which the rider and backend set", () => {
+		for (const status of ORDER_STATUSES) {
+			expect(otherStatuses(status, withRider)).not.toContain("delivered");
+			expect(otherStatuses(status)).not.toContain("delivered");
 		}
 	});
 
@@ -115,11 +90,13 @@ describe("otherStatuses", () => {
 		expect(otherStatuses("failed", withRider)).toEqual([]);
 	});
 
-	it("leaves Delivering out while it is off", () => {
-		expect(OFFERED_STATUSES).not.toContain("delivering");
-		expect(otherStatuses("preparing")).toEqual(["ready_for_delivery", "delivered", "failed"]);
-		expect(otherStatuses("ready_for_delivery")).toEqual(["delivered", "failed"]);
-		expect(otherStatuses("delivering")).toEqual(["delivered", "failed"]);
+	it("offers Delivering by default, and leaves it out when turned off", () => {
+		expect(OFFERED_STATUSES).toContain("delivering");
+		expect(otherStatuses("preparing")).toEqual(["ready_for_delivery", "delivering", "failed"]);
+		expect(otherStatuses("preparing", { delivering: false })).toEqual([
+			"ready_for_delivery",
+			"failed",
+		]);
 	});
 
 	it("routes delivering through Assign rider, so the rider is recorded", () => {
@@ -133,9 +110,8 @@ describe("otherStatuses", () => {
 });
 
 describe("needsConfirmation", () => {
-	it("confirms Mark delivered and Mark failed from anywhere", () => {
+	it("confirms Mark failed from anywhere", () => {
 		for (const from of ORDER_STATUSES) {
-			if (from !== "delivered") expect(needsConfirmation(from, "delivered")).toBe(true);
 			if (from !== "failed") expect(needsConfirmation(from, "failed")).toBe(true);
 		}
 	});
@@ -149,6 +125,7 @@ describe("needsConfirmation", () => {
 		expect(needsConfirmation("preparing", "ready_for_delivery")).toBe(false);
 		expect(needsConfirmation("ready_for_delivery", "preparing")).toBe(false);
 		expect(needsConfirmation("ready_for_delivery", "delivering")).toBe(false);
+		expect(needsConfirmation("delivering", "ready_for_delivery")).toBe(false);
 	});
 
 	it("treats delivered and failed as the end of the flow", () => {
@@ -188,16 +165,16 @@ describe("fulfillmentSequence", () => {
 	});
 
 	it("drops Delivering while it is off", () => {
-		expect(fulfillmentSequence("ready_for_delivery")).toEqual([
+		expect(fulfillmentSequence("ready_for_delivery", { delivering: false })).toEqual([
 			"preparing",
 			"ready_for_delivery",
 			"delivered",
 		]);
 		// Also for an order that went through Delivering before it was turned off.
-		expect(fulfillmentSequence("delivered")).not.toContain("delivering");
+		expect(fulfillmentSequence("delivered", { delivering: false })).not.toContain("delivering");
 	});
 
 	it("keeps Delivering for an order that is delivering now, so its current step shows", () => {
-		expect(fulfillmentSequence("delivering")).toContain("delivering");
+		expect(fulfillmentSequence("delivering", { delivering: false })).toContain("delivering");
 	});
 });

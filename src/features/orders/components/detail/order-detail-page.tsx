@@ -13,7 +13,6 @@ import { toErrorMessage } from "@/lib/api/errors";
 import { decodePathSegment } from "@/lib/utils";
 import {
 	ASSIGN_RIDER_ENABLED,
-	DELIVERING_ENABLED,
 	isFinalStatus,
 	primaryAction,
 	type Order,
@@ -34,39 +33,27 @@ const BACK_LABEL = `Back to ${orderRouteTitles.orderQueue.title}`;
 
 /**
  * The next-step bar's copy per status. While Assign rider is off (`ASSIGN_RIDER_ENABLED`) the page
- * says nothing about riders: a ready order is sent out with "Change status" → Delivering. While
- * Delivering is off too (`DELIVERING_ENABLED`) the page never mentions it: a ready order leads with
- * Mark delivered.
+ * says nothing about riders: a ready order is sent out with "Change status" → Delivering. The
+ * merchant never marks an order delivered: the rider's confirmation and the backend do.
  */
 const ORDER_NEXT_STEP: Record<OrderStatus, { title: string; description: string }> = {
 	preparing: {
 		title: "Mark the order ready",
 		description: "Pack the item, then mark it ready for delivery.",
 	},
-	ready_for_delivery: !DELIVERING_ENABLED
+	ready_for_delivery: ASSIGN_RIDER_ENABLED
 		? {
-				title: "Ready for delivery",
-				description: "Send the order out, then mark it delivered once the customer has it.",
-			}
-		: ASSIGN_RIDER_ENABLED
-			? {
-					title: "Assign a rider",
-					description: "Record who is delivering it. The order moves to Delivering.",
-				}
-			: {
-					title: "Ready for delivery",
-					description: "Send the order out, then change its status to Delivering.",
-				},
-	delivering: ASSIGN_RIDER_ENABLED
-		? {
-				title: "Out for delivery",
-				description:
-					"The rider confirms delivery with the customer’s voucher, or mark it delivered.",
+				title: "Assign a rider",
+				description: "Record who is delivering it. The order moves to Delivering.",
 			}
 		: {
-				title: "Out for delivery",
-				description: "Mark it delivered once the customer has it.",
+				title: "Ready for delivery",
+				description: "Send the order out, then change its status to Delivering.",
 			},
+	delivering: {
+		title: "Out for delivery",
+		description: "The order is marked delivered once the rider confirms it with the customer.",
+	},
 	delivered: {
 		title: "Delivered",
 		description: "This order is complete.",
