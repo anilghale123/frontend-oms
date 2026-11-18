@@ -33,9 +33,8 @@ export interface OrderStatusChange {
  * page behave the same:
  *
  * - `delivering` goes through Assign rider, so the rider is recorded;
- * - Mark failed and any change away from Delivered or Failed are confirmed first,
- *   because the customer sees every change (`needsConfirmation`);
- * - anything else is a plain status change.
+ * - every status change (Mark ready included) is confirmed first, because the customer sees
+ *   each one (`needsConfirmation`).
  *
  * The rules themselves live in `@/lib/domain`; this only wires them to the dialogs and mutations.
  */

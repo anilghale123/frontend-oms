@@ -144,10 +144,9 @@ export function isFinalStatus(status: OrderStatus): boolean {
 }
 
 /**
- * Whether the merchant confirms a change first. Every change is shown to the customer in their
- * order history, so the guide asks for a confirmation before Mark failed and any change away from
- * `delivered` or `failed` (which should only ever correct a mistake).
+ * Whether the merchant confirms a change first. Every status change is confirmed, because the
+ * customer sees each one in their order history.
  */
 export function needsConfirmation(from: OrderStatus, to: OrderStatus): boolean {
-	return to === "failed" || isFinalStatus(from);
+	return from !== to;
 }

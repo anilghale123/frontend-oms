@@ -110,22 +110,15 @@ describe("otherStatuses", () => {
 });
 
 describe("needsConfirmation", () => {
-	it("confirms Mark failed from anywhere", () => {
+	it("confirms every status change", () => {
 		for (const from of ORDER_STATUSES) {
-			if (from !== "failed") expect(needsConfirmation(from, "failed")).toBe(true);
+			for (const to of ORDER_STATUSES) {
+				if (from !== to) expect(needsConfirmation(from, to)).toBe(true);
+			}
 		}
-	});
-
-	it("confirms any change away from a final status", () => {
-		expect(needsConfirmation("delivered", "preparing")).toBe(true);
-		expect(needsConfirmation("failed", "ready_for_delivery")).toBe(true);
-	});
-
-	it("does not confirm the ordinary steps", () => {
-		expect(needsConfirmation("preparing", "ready_for_delivery")).toBe(false);
-		expect(needsConfirmation("ready_for_delivery", "preparing")).toBe(false);
-		expect(needsConfirmation("ready_for_delivery", "delivering")).toBe(false);
-		expect(needsConfirmation("delivering", "ready_for_delivery")).toBe(false);
+		expect(needsConfirmation("preparing", "ready_for_delivery")).toBe(true);
+		expect(needsConfirmation("ready_for_delivery", "delivering")).toBe(true);
+		expect(needsConfirmation("delivering", "preparing")).toBe(true);
 	});
 
 	it("treats delivered and failed as the end of the flow", () => {

@@ -31,7 +31,7 @@ export function OrderStatusAction({ order }: OrderStatusActionProps) {
 				variant="outline"
 				color="neutral"
 				loading={statusChange.pending}
-				// Mark ready is not confirmed first, so a second click must not send it again.
+				// Block a second click while the change is in flight.
 				disabled={statusChange.pending}
 				onClick={() => statusChange.run(action)}
 			>

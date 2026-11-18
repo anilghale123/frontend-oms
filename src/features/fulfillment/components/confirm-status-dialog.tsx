@@ -33,7 +33,7 @@ function copyFor(from: OrderStatus, to: OrderStatus, omsOrderId: string): Copy {
 	}
 	return {
 		title: `Change ${omsOrderId} to ${ORDER_STATUS_LABELS[to]}?`,
-		description: history,
+		description: `It is now ${ORDER_STATUS_LABELS[from]}. ${history}`,
 		action: "Change status",
 		color: "primary",
 	};
@@ -54,8 +54,7 @@ export interface ConfirmStatusDialogProps {
 
 /**
  * "Are you sure" before a status change the guide asks to confirm (`needsConfirmation` in
- * `@/lib/domain`): Mark failed and any change away from Delivered or Failed —
- * every change is shown to the customer. The dialog closes however the call ends: a failure has
+ * `@/lib/domain`): every status change, since each is shown to the customer. The dialog closes however the call ends: a failure has
  * already been shown, and the order reloaded on a conflict.
  */
 export function ConfirmStatusDialog({
