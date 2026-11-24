@@ -5,5 +5,5 @@ export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs.filter(Boolean)));
 }
 
-export { formatOrderValue, formatPhone, formatPoints, formatRs, initialsOf } from "./format";
+export { formatOrderValue, formatPhone, formatPoints, formatRs, initialsOf, splitOrderDate } from "./format";
 export { decodePathSegment } from "./url";

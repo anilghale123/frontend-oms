@@ -1,4 +1,4 @@
-// import { Package } from "lucide-react"; // the product image/icon tile is hidden for now — see below
+import { Package } from "lucide-react";
 import type { Order } from "@/lib/domain";
 
 export interface ItemCellProps {
@@ -6,28 +6,25 @@ export interface ItemCellProps {
 }
 
 /**
- * Ordered product: name only (up to two lines; full name on hover). Orders with more than one
- * item show the first and "+N more" below it. The Sales API sends no product photos.
- *
- * The icon tile that used to sit before the name is commented out for now (listing page should
- * not show a product image placeholder). Uncomment the `Package` import above and the tile below
- * to bring it back.
+ * Ordered product: a 32px tile and the name (up to two lines; full name on hover). Orders with
+ * more than one item show the first and "+N more" below it. The Sales API sends no product photos,
+ * so the tile always holds the package icon.
  */
 export function ItemCell({ order }: ItemCellProps) {
 	const [first, ...rest] = order.items;
-	if (!first) return <span className="text-fg-tertiary">—</span>;
+	if (!first) return <span className="text-sm leading-5 font-semibold text-ink">—</span>;
 
 	return (
-		<div className="flex max-w-xs min-w-0 items-center gap-2.5">
-			{/* <div className="flex size-8 shrink-0 items-center justify-center rounded-md border border-soft bg-fill1">
-				<Package className="size-4 text-fg-tertiary" aria-hidden />
-			</div> */}
+		<div className="flex min-w-0 items-center gap-2">
+			<div className="flex size-8 shrink-0 items-center justify-center rounded-md border border-thumb-border bg-thumb">
+				<Package className="size-4 text-ink-secondary" aria-hidden />
+			</div>
 			<div className="flex min-w-0 flex-col">
-				<span className="line-clamp-2 font-medium text-fg" title={first.name}>
+				<span className="line-clamp-2 text-sm leading-5 font-semibold text-ink" title={first.name}>
 					{first.name}
 				</span>
 				{rest.length > 0 && (
-					<span className="text-xs text-fg-secondary tabular-nums">+{rest.length} more</span>
+					<span className="text-sm leading-5 font-semibold text-ink">+{rest.length} more</span>
 				)}
 			</div>
 		</div>

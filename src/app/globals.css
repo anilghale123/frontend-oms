@@ -108,7 +108,49 @@
 	--color-fill4-alpha: color-mix(in srgb, oklch(0.302 0.038 263.737), transparent 84%);
 
 	--font-heading: var(--font-nunito), system-ui, sans-serif;
-	--font-body: var(--font-nunito), system-ui, sans-serif;
+	--font-body: var(--font-nunito), sans-serif;
+	--font-ui: var(--font-nunito), sans-serif;
+
+	/* Typography spec: text colors. Dark mode maps each onto the matching semantic text token. */
+	--color-ink: #0e1013; /* primary text: titles, headings, table content */
+	--color-ink-secondary: #525762; /* phone numbers, addresses, fallback text */
+	--color-ink-muted: #6b7280; /* tabs, search placeholder, pagination */
+	--color-ink-avatar: #26282c; /* avatar initials */
+	--color-action: #4d5ee3; /* row actions: "Mark ready" */
+
+	/* Primary and Secondary buttons (fixed brand colors, not the appearance accent). */
+	--font-source: var(--font-source-sans), "Source Sans Pro", sans-serif;
+	--color-btn-primary: #fe6e00;
+	--color-btn-primary-hover: #fd5602;
+	--color-btn-primary-disabled: #f39349;
+	--color-btn-primary-fg: #ffffff;
+	--color-btn-secondary: #4d5ee3;
+	--color-btn-secondary-hover: #544ae9;
+	--color-btn-secondary-focus: #463af8;
+	--color-btn-secondary-bg: #ffffff;
+	--color-btn-secondary-disabled: #e3e0fb;
+	--color-btn-secondary-disabled-bg: #f6f6f6;
+
+	/* Order detail page text, matching the Fonepoints merchant app (all Nunito). */
+	--color-detail-text: #23252b;
+	--color-detail-inactive: #9196a1;
+
+	/* Listing page: lines, row stripe, thumbnail tile, control radius. */
+	--color-line: #dfe0e4;
+	--color-row-alt: #f2f5ff;
+	--color-thumb: #f7f7f8;
+	--color-thumb-border: #e9eaec;
+	--radius-control: 3px;
+
+	/* Status badge fills and text. */
+	--color-status-preparing-bg: #d1e5fa;
+	--color-status-ready-bg: #eeeff1;
+	--color-status-delivering-bg: #ffebc2;
+	--color-status-delivered-bg: #d1fadf;
+	--color-status-preparing: #1966b2;
+	--color-status-ready: #26282c;
+	--color-status-delivering: #6e4d0c;
+	--color-status-delivered: #218341;
 
 	--color-card: var(--color-elevation-level1);
 
@@ -124,6 +166,28 @@
 }
 
 .dark {
+	--color-ink: var(--color-fg);
+	--color-ink-secondary: var(--color-fg-secondary);
+	--color-ink-muted: var(--color-fg-tertiary);
+	--color-ink-avatar: var(--color-primary-text);
+	--color-action: #8f9cf2;
+	--color-detail-text: var(--color-fg);
+	--color-detail-inactive: var(--color-fg-tertiary);
+	--color-btn-secondary-bg: var(--color-bg);
+	--color-btn-secondary-disabled-bg: var(--color-fill1);
+	--color-line: var(--color-border);
+	--color-row-alt: var(--color-fill1);
+	--color-thumb: var(--color-fill1);
+	--color-thumb-border: var(--color-border);
+	--color-status-preparing-bg: var(--color-info-accent);
+	--color-status-ready-bg: var(--color-primary-accent);
+	--color-status-delivering-bg: var(--color-warning-accent);
+	--color-status-delivered-bg: var(--color-success-accent);
+	--color-status-preparing: var(--color-info-text);
+	--color-status-ready: var(--color-primary-text);
+	--color-status-delivering: var(--color-warning-text);
+	--color-status-delivered: var(--color-success-text);
+
 	/* primary */
 	--color-primary: var(--color-fonepoints-orange);
 	--color-primary-fg: var(--color-fonepoints-orange-fg);

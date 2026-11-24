@@ -143,14 +143,14 @@ export function AssignRiderDialog({
 							<Button
 								type="button"
 								variant="outline"
-								color="neutral"
-								size="36"
+								color="primary"
+								size="40"
 								onClick={() => onOpenChange(false)}
 								disabled={pending}
 							>
 								Cancel
 							</Button>
-							<Button type="submit" size="36" loading={pending}>
+							<Button type="submit" size="40" loading={pending}>
 								Assign rider
 							</Button>
 						</DialogFooter>

@@ -22,7 +22,12 @@ export function DataTableColumnHeader<TData, TValue>({
 	align = "left",
 }: DataTableColumnHeaderProps<TData, TValue>) {
 	if (!column.getCanSort()) {
-		return <span className={cn("block", align === "right" && "text-right")}>{title}</span>;
+		return <span
+			className={cn(
+				"block text-xs leading-4 font-extrabold text-ink",
+				align === "right" && "text-right",
+			)}
+		>{title}</span>;
 	}
 
 	const sorted = column.getIsSorted();
@@ -35,7 +40,7 @@ export function DataTableColumnHeader<TData, TValue>({
 				variant="ghost"
 				color="neutral"
 				size="28"
-				className="-mx-2 font-medium text-fg-secondary hover:text-fg"
+				className="-mx-2 text-xs leading-4 font-extrabold text-ink hover:text-ink"
 				onClick={() => column.toggleSorting(sorted === "asc")}
 				aria-label={`Sort by ${title}, ${next}`}
 			>

@@ -16,10 +16,20 @@ export interface PageHeaderProps {
 	/** Primary and secondary actions, right-aligned on wide screens. */
 	actions?: ReactNode;
 	className?: string;
+	/** Extra classes for the title (`h1`), e.g. a page's own type scale. */
+	titleClassName?: string;
 }
 
 /** Title row matching Meat-Management: compact base title, not a large heading. */
-export function PageHeader({ title, back, count, badge, actions, className }: PageHeaderProps) {
+export function PageHeader({
+	title,
+	back,
+	count,
+	badge,
+	actions,
+	className,
+	titleClassName,
+}: PageHeaderProps) {
 	return (
 		<div
 			data-slot="page-header"
@@ -36,7 +46,14 @@ export function PageHeader({ title, back, count, badge, actions, className }: Pa
 						</Link>
 					</IconButton>
 				)}
-				<h1 className="truncate text-base font-semibold tracking-tight">{title}</h1>
+				<h1
+					className={cn(
+						"truncate text-lg leading-6.5 font-bold tracking-normal text-ink",
+						titleClassName,
+					)}
+				>
+					{title}
+				</h1>
 				{count !== undefined && (
 					<span className="rounded-md bg-fill1 px-1.5 py-0.5 text-xs font-medium text-fg-secondary tabular-nums">
 						{count}

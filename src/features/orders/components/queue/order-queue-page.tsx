@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { PaginationState } from "@tanstack/react-table";
 import { ClipboardList } from "lucide-react";
-import { Page, PageBody } from "@/components/layout";
+import { PageBody, PageHeader } from "@/components/layout";
 import { DataTableCard, useDataTable } from "@/components/data-display";
 import { orderRoutes as orderRouteTitles } from "@/config/nav";
 import { toErrorMessage } from "@/lib/api/errors";
@@ -72,9 +72,17 @@ export function OrderQueuePage({ placeholder = false }: OrderQueuePageProps) {
 	return (
 		// `min-h-0` down to the card: it is as tall as its rows, until it reaches the bottom of the
 		// frame, and then the rows scroll.
-		<Page title={route.title} className="min-h-0">
-			<PageBody className="min-h-0">
+		// Flat white page: the embed layout's gray and 16px padding are cancelled here, and the
+		// heading and content take the listing's own 24px.
+		<div className="-m-4 flex min-h-0 flex-1 flex-col bg-bg">
+			<PageHeader title={route.title} className="h-16 shrink-0 px-6" />
+			<PageBody className="min-h-0 px-6 pb-6">
 				<DataTableCard
+					className="rounded-none border-0 bg-transparent"
+					toolbarClassName="min-h-13.5 flex-row flex-wrap items-center justify-between border-b-0 px-0 py-3 xl:justify-between"
+					headerClassName="h-10 bg-bg"
+					// No row hover: the stripe stays put under the pointer.
+					rowClassName="h-16 border-0 odd:bg-bg even:bg-row-alt odd:[&:has(td):hover]:bg-bg! even:[&:has(td):hover]:bg-row-alt!"
 					table={table}
 					searchPlaceholder="Search order ID, customer or product"
 					toolbarLeading={
@@ -110,6 +118,6 @@ export function OrderQueuePage({ placeholder = false }: OrderQueuePageProps) {
 					}}
 				/>
 			</PageBody>
-		</Page>
+		</div>
 	);
 }

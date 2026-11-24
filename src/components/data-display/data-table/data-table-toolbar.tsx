@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import type { Table } from "@tanstack/react-table";
 import { Search } from "lucide-react";
 import { Input, InputWrapper } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import {
 	Select,
 	SelectContent,
@@ -36,6 +37,8 @@ export interface DataTableToolbarProps<TData> {
 	leading?: ReactNode;
 	/** Shows the "Show columns" icon button. */
 	columnToggle?: boolean;
+	/** Extra classes for the toolbar row. */
+	className?: string;
 	/** Extra controls after the icon group. Page-level actions (export, create) belong in `Page actions`. */
 	actions?: ReactNode;
 }
@@ -52,6 +55,7 @@ export function DataTableToolbar<TData>({
 	filter,
 	leading,
 	columnToggle,
+	className,
 	actions,
 }: DataTableToolbarProps<TData>) {
 	const filterColumn = filter ? table.getColumn(filter.columnId) : undefined;
@@ -60,14 +64,20 @@ export function DataTableToolbar<TData>({
 	return (
 		// Side by side only from `xl`: at `lg` the sidebar leaves too little room for a full row of
 		// status filters next to the search box, and the row would overflow.
-		<div className="flex shrink-0 flex-col gap-2 border-b border-border px-3 py-2.5 xl:flex-row xl:items-center xl:justify-between">
+		<div
+			className={cn(
+				"flex shrink-0 flex-col gap-2 border-b border-border px-3 py-2.5 xl:flex-row xl:items-center xl:justify-between",
+				className,
+			)}
+		>
 			<div className="flex min-w-0 items-center gap-2">{leading}</div>
 			<div className="flex flex-wrap items-center gap-2 xl:justify-end">
 				{searchPlaceholder && (
-					<InputWrapper size="32" className="w-full sm:w-80">
+					<InputWrapper size="32" className="h-7.5 w-full rounded-control border-line sm:w-80">
 						<Search aria-hidden />
 						<Input
 							type="search"
+							className="text-xs leading-4 font-semibold text-ink placeholder:text-xs placeholder:leading-4 placeholder:font-semibold placeholder:text-ink-muted"
 							placeholder={searchPlaceholder}
 							aria-label={searchPlaceholder}
 							value={(table.getState().globalFilter as string | undefined) ?? ""}

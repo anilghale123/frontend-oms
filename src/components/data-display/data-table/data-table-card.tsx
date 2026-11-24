@@ -15,6 +15,8 @@ export interface DataTableCardProps<TData> extends Omit<DataTableViewProps<TData
 	searchPlaceholder?: string;
 	/** Optional single-select filter on one column. */
 	filter?: DataTableFilter;
+	/** Extra classes for the toolbar row. */
+	toolbarClassName?: string;
 	/** Left side of the toolbar, e.g. status tabs. */
 	toolbarLeading?: ReactNode;
 	/** Extra toolbar controls after the icon group. Prefer `Page actions` for page-level actions. */
@@ -41,6 +43,7 @@ export function DataTableCard<TData>({
 	searchPlaceholder,
 	filter,
 	toolbarLeading,
+	toolbarClassName,
 	toolbarActions,
 	columnToggle,
 	rowSize = "md",
@@ -62,6 +65,7 @@ export function DataTableCard<TData>({
 				searchPlaceholder={searchPlaceholder}
 				filter={filter}
 				leading={toolbarLeading}
+				className={toolbarClassName}
 				columnToggle={columnToggle}
 				actions={toolbarActions}
 			/>

@@ -217,7 +217,7 @@ export const HOST_THEME_HINT_PARAMS = { mode: "theme", accent: "accent" } as con
  * Runs before paint. Keep in sync with applyAppearance.
  *
  * Order: the merchant's stored preference first, then the host hint on top, because while
- * embedded the host owns the mode and accent. The stored font always wins — the host has no
+ * embedded the host owns the mode and accent. The stored font wins everywhere but /embed, where it is always Nunito — the host has no
  * opinion on it.
  */
-export const APPEARANCE_BOOT_SCRIPT = `(function(){try{var r=localStorage.getItem("${APPEARANCE_STORAGE_KEY}");var a=r?JSON.parse(r):null;var h=new URLSearchParams(location.hash.slice(1));var hm=h.get("${HOST_THEME_HINT_PARAMS.mode}");var ha=h.get("${HOST_THEME_HINT_PARAMS.accent}");var m=hm==="dark"||hm==="light"?hm:a&&a.mode;var d=m==="dark"||(m==="system"&&window.matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.classList.toggle("dark",!!d);var t=ha&&/^[a-z][a-z-]{1,23}$/.test(ha)?ha:a&&a.theme;if(t==="fonepoints")t="fonepoints-orange";if(t)document.documentElement.dataset.theme=t;if(a&&a.font&&a.font!=="nunito")document.documentElement.dataset.font=a.font;}catch(e){}})();`;
+export const APPEARANCE_BOOT_SCRIPT = `(function(){try{var r=localStorage.getItem("${APPEARANCE_STORAGE_KEY}");var a=r?JSON.parse(r):null;var h=new URLSearchParams(location.hash.slice(1));var hm=h.get("${HOST_THEME_HINT_PARAMS.mode}");var ha=h.get("${HOST_THEME_HINT_PARAMS.accent}");var m=hm==="dark"||hm==="light"?hm:a&&a.mode;var d=m==="dark"||(m==="system"&&window.matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.classList.toggle("dark",!!d);var t=ha&&/^[a-z][a-z-]{1,23}$/.test(ha)?ha:a&&a.theme;if(t==="fonepoints")t="fonepoints-orange";if(t)document.documentElement.dataset.theme=t;if(a&&a.font&&a.font!=="nunito"&&location.pathname.indexOf("/embed")!==0)document.documentElement.dataset.font=a.font;}catch(e){}})();`;

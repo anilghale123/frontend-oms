@@ -33,7 +33,11 @@ export function OrderStatusTabs({ value, onValueChange }: OrderStatusTabsProps) 
 		<>
 			{/* Phones: the joined button row doesn't fit, so the same options become a select. */}
 			<Select value={value} onValueChange={(next) => onValueChange(next as OrderStatusFilter)}>
-				<SelectTrigger size="32" className="w-full sm:hidden" aria-label="Filter by status">
+				<SelectTrigger
+					size="32"
+					className="w-full text-xs leading-4 font-semibold text-ink-muted sm:hidden"
+					aria-label="Filter by status"
+				>
 					<SelectValue />
 				</SelectTrigger>
 				<SelectContent>
@@ -47,7 +51,8 @@ export function OrderStatusTabs({ value, onValueChange }: OrderStatusTabsProps) 
 			<ToggleGroup
 				type="single"
 				variant="outline"
-				size="32"
+				size="28"
+				spacing={2}
 				aria-label="Filter by status"
 				className="hidden sm:flex"
 				value={value}
@@ -60,7 +65,7 @@ export function OrderStatusTabs({ value, onValueChange }: OrderStatusTabsProps) 
 					<ToggleGroupItem
 						key={option}
 						value={option}
-						className="data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-fg data-[state=on]:hover:bg-primary-hover"
+						className="rounded-control border-line px-2.5 text-xs leading-4 font-semibold text-ink-muted hover:bg-primary-accent focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-1 focus-visible:outline-offset-3 focus-visible:outline-btn-primary focus-visible:outline-solid data-[state=on]:border-btn-primary data-[state=on]:bg-btn-primary data-[state=on]:text-btn-primary-fg data-[state=on]:hover:border-btn-primary-hover data-[state=on]:hover:bg-btn-primary-hover"
 					>
 						{option === ALL ? "All" : ORDER_STATUS_LABELS[option]}
 					</ToggleGroupItem>

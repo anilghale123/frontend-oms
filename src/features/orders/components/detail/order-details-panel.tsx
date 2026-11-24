@@ -17,7 +17,9 @@ export function OrderDetailsPanel({ order }: OrderDetailsPanelProps) {
 	return (
 		<Panel flush>
 			<PanelHeader>
-				<PanelTitle>Delivery details</PanelTitle>
+				<PanelTitle className="text-lg leading-6.5 font-bold tracking-normal text-ink">
+					Delivery details
+				</PanelTitle>
 			</PanelHeader>
 			<PanelContent>
 				<dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2">

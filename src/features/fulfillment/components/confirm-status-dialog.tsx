@@ -89,12 +89,12 @@ export function ConfirmStatusDialog({
 				</AlertDialogHeader>
 				<AlertDialogFooter>
 					<AlertDialogCancel asChild>
-						<Button variant="outline" color="neutral" size="36" disabled={pending}>
+						<Button variant="outline" color="primary" size="40" disabled={pending}>
 							Cancel
 						</Button>
 					</AlertDialogCancel>
 					<Button
-						size="36"
+						size="40"
 						color={copy.color}
 						loading={pending}
 						onClick={() => void handleConfirm()}

@@ -1,6 +1,6 @@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import type { OrderCustomer } from "@/lib/domain";
-import { cn, formatPhone, initialsOf } from "@/lib/utils";
+import { formatPhone, initialsOf } from "@/lib/utils";
 
 export interface CustomerCellProps {
 	customer: OrderCustomer;
@@ -15,15 +15,17 @@ export function CustomerCell({ customer }: CustomerCellProps) {
 	const phone = formatPhone(customer.contact);
 
 	return (
-		<div className="flex min-w-0 items-center gap-2.5">
+		<div className="flex min-w-0 items-center gap-2">
 			<Avatar size="32">
-				<AvatarFallback>{initialsOf(name, customer.identifier)}</AvatarFallback>
+				<AvatarFallback className="bg-fill2 text-sm leading-5 font-semibold text-ink-avatar">
+					{initialsOf(name, customer.identifier)}
+				</AvatarFallback>
 			</Avatar>
 			<div className="flex min-w-0 flex-col">
-				<span className={cn("truncate font-medium text-fg", !name && "tabular-nums")}>
+				<span className="truncate text-sm leading-5 font-bold text-ink">
 					{name || phone || customer.identifier || "—"}
 				</span>
-				<span className={cn("truncate text-xs text-fg-secondary", name && "tabular-nums")}>
+				<span className="truncate text-sm leading-5 font-semibold text-ink-secondary">
 					{name ? phone || customer.identifier : "No name on file"}
 				</span>
 			</div>

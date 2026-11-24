@@ -29,6 +29,20 @@ export function formatOrderValue(order: { points: number | null; amount: number 
 	return parts.join(" + ") || "—";
 }
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/**
+ * Splits the server's Nepal-time stamp ("2026-10-04 10:42:07") into "04 Oct 2026" and "10:42" for
+ * the queue. Only the text is rearranged, so no time zone is applied. A stamp in any other shape
+ * comes back whole as `date`, with no `time`.
+ */
+export function splitOrderDate(stamp: string): { date: string; time: string } {
+	const match = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/.exec(stamp.trim());
+	const month = match ? MONTHS[Number(match[2]) - 1] : undefined;
+	if (!match || !month) return { date: stamp, time: "" };
+	return { date: `${match[3]} ${month} ${match[1]}`, time: `${match[4]}:${match[5]}` };
+}
+
 /** Up to two initials from a name, falling back to the first letter of `fallback`. */
 export function initialsOf(name: string, fallback = "?"): string {
 	const words = name.trim().split(/\s+/).filter(Boolean);

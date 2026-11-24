@@ -22,7 +22,7 @@ export interface RouteDef {
 export const orderRoutes = {
 	orderQueue: {
 		id: "orders.queue",
-		title: "Order Queue",
+		title: "Order Management",
 		href: "/embed/orders",
 		icon: ClipboardList,
 	},

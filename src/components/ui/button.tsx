@@ -50,6 +50,19 @@ export type IconButtonProps = Omit<React.ComponentProps<"button">, "color"> & {
 	asChild?: boolean
 }
 
+/**
+ * Primary (strong + primary) and Secondary (outline + primary): rectangular, flat, uppercase
+ * Source Sans 700, with explicit colors for every state (no opacity). Keyboard focus is an
+ * external 1px outline at a 3px offset, so it never changes the button's size. Disabled buttons
+ * take `pointer-events-none` from the base, so they get no hover.
+ */
+const FOCUS_OUTLINE =
+	"focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-1 focus-visible:outline-solid focus-visible:outline-offset-3"
+const BUTTON_TYPE = "rounded-none shadow-none font-source font-bold uppercase tracking-normal"
+
+const PRIMARY_BUTTON = `${BUTTON_TYPE} border-0 bg-btn-primary text-btn-primary-fg hover:bg-btn-primary-hover focus-visible:bg-btn-primary focus-visible:outline-btn-primary ${FOCUS_OUTLINE} disabled:bg-btn-primary-disabled disabled:text-btn-primary-fg`
+const SECONDARY_BUTTON = `${BUTTON_TYPE} border border-btn-secondary bg-btn-secondary-bg text-btn-secondary hover:border-btn-secondary-hover hover:bg-btn-secondary-bg hover:text-btn-secondary-hover focus-visible:border-btn-secondary-focus focus-visible:bg-btn-secondary-bg focus-visible:text-btn-secondary-focus focus-visible:outline-btn-secondary ${FOCUS_OUTLINE} disabled:border-btn-secondary-disabled disabled:bg-btn-secondary-disabled-bg disabled:text-btn-secondary-disabled`
+
 export const buttonVariants = cva(
 	"inline-flex whitespace-nowrap items-center justify-center box-border focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:pointer-events-none hover:cursor-pointer w-fit",
 	{
@@ -105,8 +118,22 @@ export const buttonVariants = cva(
 			{
 				variant: "strong",
 				color: "primary",
+				className: PRIMARY_BUTTON,
+			},
+			// Regular (40) and Small (32): content-width with fixed padding, fixed height.
+			{
+				variant: "strong",
+				color: "primary",
+				size: "40",
+				className: "h-10 gap-2 px-6.5 py-0 text-sm leading-[18px]",
+			},
+			{
+				variant: "strong",
+				color: "primary",
+				size: "32",
+				// The reference draws Small Primary in the disabled fill; hover and focus still apply.
 				className:
-					"bg-primary font-medium text-primary-fg hover:bg-primary-hover focus-visible:ring-primary focus-visible:outline-none",
+					"h-8 gap-1.5 bg-btn-primary-disabled px-5 py-0 text-xs leading-[15px] text-btn-primary-fg",
 			},
 			{
 				variant: "strong",
@@ -181,8 +208,21 @@ export const buttonVariants = cva(
 			{
 				variant: "outline",
 				color: "primary",
+				className: SECONDARY_BUTTON,
+			},
+			{
+				variant: "outline",
+				color: "primary",
+				size: "40",
+				className: "h-10 gap-2 px-6.5 py-0 text-sm leading-[18px]",
+			},
+			{
+				variant: "outline",
+				color: "primary",
+				size: "32",
+				// The reference draws Small Secondary on the gray fill; hover and focus return to white.
 				className:
-					"bg-transparent font-medium border border-primary-border text-primary-text hover:bg-primary-accent focus-visible:ring-primary-hover",
+					"h-8 gap-1.5 bg-btn-secondary-disabled-bg px-5 py-0 text-xs leading-[15px]",
 			},
 			{
 				variant: "outline",
@@ -466,9 +506,12 @@ function Button({
 	asChild = false,
 	...props
 }: ButtonProps) {
+	// Primary and Secondary have explicit disabled colors; every other variant dims.
+	const hasDisabledColors =
+		color === "primary" && (variant === "strong" || variant === "outline")
 	const combinedClass = cn(
 		buttonVariants({ variant, size, color, loading }),
-		disabled && "opacity-50",
+		disabled && !hasDisabledColors && "opacity-50",
 		className
 	)
 

@@ -57,7 +57,9 @@ export function OrderProgressTracker({ status, logs, nextStep }: OrderProgressTr
 	return (
 		<Panel flush>
 			<PanelHeader>
-				<PanelTitle>Fulfillment</PanelTitle>
+				<PanelTitle className="text-lg leading-6.5 font-bold tracking-normal text-ink">
+					Fulfillment
+				</PanelTitle>
 			</PanelHeader>
 			{nextStep && (
 				<div
@@ -65,8 +67,8 @@ export function OrderProgressTracker({ status, logs, nextStep }: OrderProgressTr
 					className="flex flex-col gap-3 border-b border-primary-border bg-primary-accent px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
 				>
 					<div className="flex min-w-0 flex-col gap-0.5">
-						<p className="text-sm font-semibold text-primary-text">{nextStep.title}</p>
-						<p className="text-sm text-fg-secondary">{nextStep.description}</p>
+						<p className="text-sm leading-5 font-bold text-ink">{nextStep.title}</p>
+						<p className="text-xs leading-4 font-normal text-detail-text">{nextStep.description}</p>
 					</div>
 					{nextStep.actions && (
 						<div className="flex shrink-0 flex-wrap items-center gap-2">{nextStep.actions}</div>
@@ -114,13 +116,22 @@ export function OrderProgressTracker({ status, logs, nextStep }: OrderProgressTr
 									<StatusBadge status="failed" />
 								) : (
 									<p
-										className={cn("text-sm font-medium", upcoming ? "text-fg-tertiary" : "text-fg")}
+										className={cn(
+											"text-sm leading-5",
+											// Reached and current steps are Nunito; upcoming ones are Geist and muted.
+											upcoming ? "font-bold text-detail-inactive" : "font-bold text-detail-text",
+										)}
 									>
 										{ORDER_STATUS_LABELS[step.status]}
 										{step.state === "current" && <span className="sr-only"> (current step)</span>}
 									</p>
 								)}
-								<span className="text-xs text-fg-tertiary tabular-nums">
+								<span
+									className={cn(
+										"text-xs leading-4 font-normal",
+										upcoming ? "text-detail-inactive" : "text-detail-text",
+									)}
+								>
 									{step.time ?? (upcoming ? "Pending" : " ")}
 								</span>
 							</li>

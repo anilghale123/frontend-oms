@@ -25,10 +25,16 @@ import { ErrorState } from "@/components/feedback/error-state";
 declare module "@tanstack/react-table" {
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	interface ColumnMeta<TData extends RowData, TValue> {
-		/** Extra classes for this column's header and cells, e.g. "text-right tabular-nums". */
+		/** Extra classes for this column's header and cells, e.g. "text-right". */
 		className?: string;
 		/** Human label for the column, used by `DataTableViewOptions`. */
 		label?: string;
+		/**
+		 * Reference width in px. When every visible column has one the table is fixed-layout: a
+		 * `colgroup` sets the widths, they scale up with the container, and below their sum the table
+		 * scrolls sideways instead of squeezing.
+		 */
+		width?: number;
 	}
 }
 
@@ -52,6 +58,10 @@ export interface DataTableViewProps<TData> {
 	skeletonRows?: number;
 	/** Row density. Default `md`. */
 	rowSize?: DataTableRowSize;
+	/** Extra classes for every header cell, e.g. a fixed height or background. */
+	headerClassName?: string;
+	/** Extra classes for every body row (including skeleton rows), e.g. height and striping. */
+	rowClassName?: string;
 	/** Classes for the scroll container, e.g. `flex-1` to fill a full-screen card. */
 	className?: string;
 }
@@ -84,11 +94,16 @@ export function DataTableView<TData>({
 	onRowIntent,
 	skeletonRows = 5,
 	rowSize = "md",
+	headerClassName,
+	rowClassName,
 	className,
 }: DataTableViewProps<TData>) {
 	const sizeClass = DATA_TABLE_ROW_SIZE_CLASS[rowSize];
 	const columns = table.getVisibleLeafColumns();
 	const rows = table.getRowModel().rows;
+	const widths = columns.map((column) => column.columnDef.meta?.width);
+	const fixedWidth = widths.length > 0 && widths.every((w) => w !== undefined);
+	const widthSum = fixedWidth ? widths.reduce<number>((sum, w) => sum + (w ?? 0), 0) : undefined;
 
 	const activate = (row: Row<TData>, event: MouseEvent | KeyboardEvent) => {
 		if ((event.target as HTMLElement).closest(INTERACTIVE)) return;
@@ -106,9 +121,9 @@ export function DataTableView<TData>({
 		);
 	} else if (loading) {
 		body = Array.from({ length: skeletonRows }, (_, i) => (
-			<TableRow key={i}>
+			<TableRow key={i} className={rowClassName}>
 				{columns.map((column) => (
-					<TableCell key={column.id} className={sizeClass}>
+					<TableCell key={column.id} className={cn(sizeClass, column.columnDef.meta?.className)}>
 						<Skeleton className="h-4 w-full rounded" />
 					</TableCell>
 				))}
@@ -125,7 +140,10 @@ export function DataTableView<TData>({
 			<TableRow
 				key={row.id}
 				data-state={row.getIsSelected() ? "selected" : undefined}
-				className={cn(onRowClick && "cursor-pointer outline-none focus-visible:bg-fill1")}
+				className={cn(
+					rowClassName,
+					onRowClick && "cursor-pointer outline-none focus-visible:bg-fill1",
+				)}
 				tabIndex={onRowClick ? 0 : undefined}
 				onClick={onRowClick ? (e) => activate(row, e) : undefined}
 				onKeyDown={onRowClick ? (e) => e.key === "Enter" && activate(row, e) : undefined}
@@ -151,14 +169,29 @@ export function DataTableView<TData>({
 				className,
 			)}
 		>
-			<Table aria-busy={loading || undefined}>
-				<TableHeader className="sticky top-0 z-10">
+			<Table
+				aria-busy={loading || undefined}
+				className={fixedWidth ? "table-fixed" : undefined}
+				style={widthSum ? { minWidth: widthSum } : undefined}
+			>
+				{fixedWidth && (
+					<colgroup>
+						{columns.map((column) => (
+							<col key={column.id} style={{ width: column.columnDef.meta?.width }} />
+						))}
+					</colgroup>
+				)}
+				<TableHeader className="sticky top-0 z-10 [&_tr]:border-b-0">
 					{table.getHeaderGroups().map((group) => (
-						<TableRow key={group.id}>
+						<TableRow key={group.id} className="border-0">
 							{group.headers.map((header) => (
 								<TableHead
 									key={header.id}
-									className={cn(sizeClass, header.column.columnDef.meta?.className)}
+									className={cn(
+										sizeClass,
+										headerClassName,
+										header.column.columnDef.meta?.className,
+									)}
 								>
 									{header.isPlaceholder
 										? null

@@ -62,13 +62,20 @@ export function DataTablePagination<TData>({
 	];
 
 	return (
-		<div className="flex shrink-0 items-center justify-between gap-3 border-t border-border bg-fill1 px-3 py-2 sm:gap-8">
+		<div className="flex shrink-0 items-center justify-between gap-3 border-t border-line bg-bg px-3 py-2 sm:gap-8">
 			<div className="flex items-center gap-3">
-				<Label id={labelId} className="text-fg-secondary max-sm:sr-only">
+				<Label
+					id={labelId}
+					className="text-xs leading-4 font-semibold text-ink-muted max-sm:sr-only"
+				>
 					Rows per page
 				</Label>
 				<Select value={String(pageSize)} onValueChange={(v) => table.setPageSize(Number(v))}>
-					<SelectTrigger size="32" className="w-fit whitespace-nowrap" aria-labelledby={labelId}>
+					<SelectTrigger
+						size="32"
+						className="w-fit text-xs leading-4 font-semibold whitespace-nowrap text-ink-muted"
+						aria-labelledby={labelId}
+					>
 						<SelectValue />
 					</SelectTrigger>
 					<SelectContent>
@@ -80,9 +87,9 @@ export function DataTablePagination<TData>({
 					</SelectContent>
 				</Select>
 			</div>
-			<div className="flex grow justify-end text-sm whitespace-nowrap text-fg-secondary">
-				<p className="tabular-nums" aria-live="polite">
-					<span className="text-fg">
+			<div className="flex grow justify-end text-xs leading-4 font-semibold whitespace-nowrap text-ink-muted">
+				<p aria-live="polite">
+					<span>
 						{start}–{end}
 					</span>{" "}
 					of {total}

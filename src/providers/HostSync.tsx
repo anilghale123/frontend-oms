@@ -102,8 +102,9 @@ export function HostSync() {
 				return;
 			}
 
-			// `loadAppearance` is the stored preference, so the font the merchant picked survives a
-			// host theme push; only the mode and accent come from the host.
+			// Only the mode and accent come from the host. The font is always Nunito on this surface:
+			// there is no Settings page here to change it, so a font saved by an older session (the
+			// standalone dashboard) must not override the brand typeface.
 			const current = loadAppearance();
 			const hostAccent = asAppearanceTheme(
 				accent,
@@ -116,6 +117,7 @@ export function HostSync() {
 			});
 			applyAppearance({
 				...current,
+				font: "nunito",
 				mode,
 				theme: hostAccent ? resolveAppearanceTheme(hostAccent) : current.theme,
 			});

@@ -37,10 +37,10 @@ export function OrderCustomerDetails({ customer }: OrderCustomerDetailsProps) {
 					<AvatarFallback>{initialsOf(customer.name, customer.identifier)}</AvatarFallback>
 				</Avatar>
 				<div className="flex min-w-0 flex-col">
-					<span className="truncate text-sm font-medium text-fg">
+					<span className="truncate text-sm leading-5 font-bold text-detail-text">
 						{customer.name || <EmptyValue>No name on file</EmptyValue>}
 					</span>
-					<span className="truncate text-xs text-fg-secondary tabular-nums">
+					<span className="truncate text-xs leading-4 font-normal text-detail-text">
 						{formatPhone(customer.contact) || <EmptyValue>No phone on file</EmptyValue>}
 					</span>
 				</div>
