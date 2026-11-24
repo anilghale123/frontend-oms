@@ -83,7 +83,7 @@ function FormItem({ className, ...props }: FormItemProps) {
 		<FormItemContext.Provider value={{ id }}>
 			<div
 				data-slot="form-item"
-				className={cn("flex flex-col gap-1.5", className)}
+				className={cn("flex flex-col gap-1.25", className)}
 				data-invalid={!!error}
 				{...props}
 			/>
@@ -99,7 +99,7 @@ function FormLabel({ className, ...props }: FormLabelProps) {
 	return (
 		<Label
 			data-slot="form-label"
-			className={cn("text-fg text-sm font-medium", className)}
+			className={cn("text-field-label text-xs leading-4 font-extrabold", className)}
 			htmlFor={formItemId}
 			{...props}
 		/>
@@ -139,7 +139,7 @@ function FormDescription({ className, ...props }: FormDescriptionProps) {
 		<div
 			data-slot="form-description"
 			id={formDescriptionId}
-			className={cn("text-fg-secondary text-xs font-normal", className)}
+			className={cn("text-field-label text-xs leading-3.5 font-normal", className)}
 			{...props}
 		/>
 	)
@@ -159,7 +159,7 @@ function FormMessage({ className, children, ...props }: FormMessageProps) {
 		<div
 			data-slot="form-message"
 			id={formMessageId}
-			className={cn("text-error-text text-xs font-normal", className)}
+			className={cn("text-field-error text-xs leading-3.5 font-normal", className)}
 			{...props}>
 			{body}
 		</div>

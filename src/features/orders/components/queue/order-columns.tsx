@@ -51,7 +51,7 @@ export function createOrderColumns(): ColumnDef<Order, unknown>[] {
 			meta: { label: "Value", width: 118, className: CELL },
 			header: ({ column }) => <DataTableColumnHeader column={column} title="Value" />,
 			cell: ({ row }) => (
-				<span className="text-sm leading-5 font-bold text-ink">
+				<span className="text-sm leading-5 font-semibold text-ink">
 					{formatOrderValue(row.original)}
 				</span>
 			),

@@ -16,23 +16,26 @@ export type InputWrapperProps = React.ComponentProps<"div"> &
 
 const inputVariants = cva(
 	`
-	flex w-full items-center bg-bg border border-alpha transition-[color,box-shadow] text-fg placeholder:text-fg-tertiary 
-	focus-visible:ring-primary-focus  focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2   
-	disabled:cursor-not-allowed disabled:opacity-60 disabled:text-fg-disabled disabled:bg-fill2-alpha
+	flex w-full items-center bg-bg border border-field-border rounded-none shadow-none font-bold text-field-text
+	transition-colors placeholder:text-xs placeholder:font-bold placeholder:italic placeholder:text-field-placeholder placeholder:opacity-100
+	hover:border-field-hover
+	focus-visible:border-field-focus focus-visible:outline-none focus-visible:ring-0
+	disabled:cursor-not-allowed disabled:border-field-muted disabled:bg-field-disabled-bg disabled:text-field-muted disabled:opacity-100
 	[&[readonly]]:bg-fill1 [&[readonly]]:cursor-not-allowed
-	file:h-full [&[type=file]]:py-0 file:border-solid file:border-alpha file:bg-transparent 
+	file:h-full [&[type=file]]:py-0 file:border-solid file:border-alpha file:bg-transparent
 	file:font-medium file:not-italic file:text-fg file:p-0 file:border-0 file:border-e
-	aria-invalid:border-error aria-invalid:ring-error-focus
+	aria-invalid:border-field-error aria-invalid:ring-0
+	data-[status=success]:border-field-success data-[status=warning]:border-field-warning
   `,
 	{
 		variants: {
 			size: {
-				"28": "h-7 text-[13px] px-2 rounded-md file:pe-1.5 file:me-1.5",
-				"32": "h-8 text-sm px-2 rounded-md file:pe-3 file:me-3",
-				"36": "h-9 text-sm px-2.5 rounded-lg file:pe-2.5 file:me-2.5",
-				"40": "h-10 text-sm px-3 rounded-lg file:pe-3 file:me-3",
-				"44": "h-11 text-base px-3 rounded-lg file:pe-3.5 file:me-3.5",
-				"48": "h-12 text-base px-3.5 rounded-lg file:pe-3.5 file:me-3.5",
+				"28": "h-7 text-[13px] px-2 file:pe-1.5 file:me-1.5",
+				"32": "h-8.5 text-sm px-2.5 file:pe-3 file:me-3",
+				"36": "h-8.5 text-sm px-2.5 file:pe-2.5 file:me-2.5",
+				"40": "h-10 text-sm px-3 file:pe-3 file:me-3",
+				"44": "h-11 text-base px-3 file:pe-3.5 file:me-3.5",
+				"48": "h-12 text-base px-3.5 file:pe-3.5 file:me-3.5",
 			},
 		},
 		defaultVariants: {
@@ -92,10 +95,9 @@ const inputGroupVariants = cva(
 const inputWrapperVariants = cva(
 	`
 	flex items-center gap-1.5
-	has-[:focus-visible]:ring-primary-accent
-	has-[:focus-visible]:border-primary
-	has-[:focus-visible]:outline-none 
-	has-[:focus-visible]:ring-2
+	has-[:focus-visible]:border-field-focus
+	has-[:focus-visible]:outline-none
+	has-[:focus-visible]:ring-0
 
 	
 	[&_[data-slot=datefield]]:grow 
@@ -107,8 +109,8 @@ const inputWrapperVariants = cva(
 	[&_:is([data-slot=input],[data-slot=currency-input])]:w-full 
     [&_:is([data-slot=input],[data-slot=currency-input])]:outline-none 
     [&_:is([data-slot=input],[data-slot=currency-input])]:transition-colors 
-	[&_:is([data-slot=input],[data-slot=currency-input])]:text-fg
-	[&_:is([data-slot=input],[data-slot=currency-input])]:placeholder:text-fg-tertiary 
+	[&_:is([data-slot=input],[data-slot=currency-input])]:text-field-text
+	[&_:is([data-slot=input],[data-slot=currency-input])]:placeholder:text-field-placeholder 
 	[&_:is([data-slot=input],[data-slot=currency-input])]:p-0
 	[&_:is([data-slot=input],[data-slot=currency-input])]:border-0 
 	[&_:is([data-slot=input],[data-slot=currency-input])]:bg-transparent 
@@ -121,21 +123,21 @@ const inputWrapperVariants = cva(
 	[&_svg]:text-fg-tertiary
 	[&_svg]:shrink-0
 
-	has-[[aria-invalid=true]]:border-error
-	has-[[aria-invalid=true]]:ring-error-accent   
+	has-[[aria-invalid=true]]:border-field-error
+	has-[[aria-invalid=true]]:ring-0
   `,
 	{
 		variants: {
 			size: {
 				"28": "gap-1.5 h-7 [&_svg:not([class*=size-])]:size-4",
-				"32": "gap-2 h-8 [&_svg:not([class*=size-])]:size-4.5",
-				"36": "gap-2 h-9 [&_svg:not([class*=size-])]:size-5",
+				"32": "gap-2 h-8.5 [&_svg:not([class*=size-])]:size-4.5",
+				"36": "gap-2 h-8.5 [&_svg:not([class*=size-])]:size-5",
 				"40": "gap-2 h-10 [&_svg:not([class*=size-])]:size-5",
 				"44": "gap-2 h-11 [&_svg:not([class*=size-])]:size-5",
 				"48": "gap-2 h-12 [&_svg:not([class*=size-])]:size-5",
 			},
 			disabled: {
-				true: "cursor-not-allowed opacity-60 bg-fill1 has-[:focus-visible]:ring-0 has-[:focus-visible]:border-alpha [&_svg]:text-fg-tertiary",
+				true: "cursor-not-allowed opacity-100 bg-field-disabled-bg border-field-muted text-field-muted has-[:focus-visible]:ring-0 has-[:focus-visible]:border-field-muted [&_svg]:text-field-muted",
 				false: "",
 			},
 		},

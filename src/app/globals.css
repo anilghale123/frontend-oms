@@ -118,6 +118,19 @@
 	--color-ink-avatar: #26282c; /* avatar initials */
 	--color-action: #4d5ee3; /* row actions: "Mark ready" */
 
+	/* Form fields (FonePoints input spec): border, states, label and value colors. */
+	--color-field-border: #b8b9bb;
+	--color-field-hover: #3e4851;
+	--color-field-focus: #1d2730;
+	--color-field-success: #089f33;
+	--color-field-error: #d91009;
+	--color-field-warning: #f5a507;
+	--color-field-placeholder: #b8b9bb;
+	--color-field-label: #3e4851;
+	--color-field-text: #1d2730;
+	--color-field-muted: #798085;
+	--color-field-disabled-bg: #f6f6f6;
+
 	/* Primary and Secondary buttons (fixed brand colors, not the appearance accent). */
 	--font-source: var(--font-source-sans), "Source Sans Pro", sans-serif;
 	--color-btn-primary: #fe6e00;
@@ -166,6 +179,17 @@
 }
 
 .dark {
+	--color-field-border: var(--color-border);
+	--color-field-hover: var(--color-fg-secondary);
+	--color-field-focus: var(--color-fg);
+	--color-field-success: var(--color-success-text);
+	--color-field-error: var(--color-error-text);
+	--color-field-warning: var(--color-warning-text);
+	--color-field-placeholder: var(--color-fg-tertiary);
+	--color-field-label: var(--color-fg-secondary);
+	--color-field-text: var(--color-fg);
+	--color-field-muted: var(--color-fg-tertiary);
+	--color-field-disabled-bg: var(--color-fill1);
 	--color-ink: var(--color-fg);
 	--color-ink-secondary: var(--color-fg-secondary);
 	--color-ink-muted: var(--color-fg-tertiary);

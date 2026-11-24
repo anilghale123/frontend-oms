@@ -152,7 +152,7 @@ export function OrderListPanel({
 						className="px-4"
 					/>
 				) : (
-					<ul className="divide-y divide-border">
+					<ul>
 						{visible.map((order) => (
 							<OrderListRow
 								key={order.referenceId}
@@ -186,28 +186,41 @@ function OrderListRow({
 }) {
 	const orderRoutes = useOrderRoutes();
 	return (
-		<li>
+		<li className="odd:bg-bg even:bg-row-alt">
 			<Link
 				ref={rowRef}
 				href={orderRoutes.detail(order.referenceId)}
 				aria-current={active ? "page" : undefined}
 				className={cn(
-					"flex flex-col gap-1 border-l-2 px-3 py-2.5 outline-none focus-visible:bg-fill1-alpha",
-					active ? "border-primary bg-primary-accent" : "border-transparent hover:bg-fill1-alpha",
+					"flex flex-col gap-1 border-l-2 px-3 py-2.5 outline-none",
+					active ? "border-primary bg-primary-accent" : "border-transparent",
 				)}
 			>
 				<span className="flex items-baseline justify-between gap-2">
 					<span
-						className={cn("truncate text-sm text-fg", active ? "font-semibold" : "font-medium")}
+						className={cn(
+							"truncate text-sm leading-5 font-bold",
+							active ? "text-btn-primary" : "text-ink",
+						)}
 					>
 						{order.omsOrderId}
 					</span>
-					<span className="shrink-0 text-xs text-fg-secondary tabular-nums">
+					<span
+						className={cn(
+							"shrink-0 text-sm leading-5 font-semibold tabular-nums",
+							active ? "text-btn-primary" : "text-ink",
+						)}
+					>
 						{formatOrderValue(order)}
 					</span>
 				</span>
 				<span className="flex items-center justify-between gap-2">
-					<span className="truncate text-xs text-fg-secondary">
+					<span
+						className={cn(
+							"truncate text-sm leading-5 font-semibold",
+							active ? "text-btn-primary" : "text-ink-secondary",
+						)}
+					>
 						{order.customer.name || order.customer.contact}
 					</span>
 					<StatusBadge status={order.status} className="shrink-0" />

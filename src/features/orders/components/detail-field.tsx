@@ -17,7 +17,7 @@ export interface DetailFieldProps {
 export function DetailField({ label, numeric = false, wide = false, children }: DetailFieldProps) {
 	return (
 		<div className={cn("flex min-w-0 flex-col gap-0.5", wide && "col-span-full")}>
-			<dt className="text-sm leading-5 font-bold text-detail-text">{label}</dt>
+			<dt className="text-sm leading-5 font-semibold text-detail-text">{label}</dt>
 			<dd
 				className={cn(
 					"text-xs leading-4 font-normal break-words text-detail-text",

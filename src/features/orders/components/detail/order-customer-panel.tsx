@@ -37,7 +37,7 @@ export function OrderCustomerDetails({ customer }: OrderCustomerDetailsProps) {
 					<AvatarFallback>{initialsOf(customer.name, customer.identifier)}</AvatarFallback>
 				</Avatar>
 				<div className="flex min-w-0 flex-col">
-					<span className="truncate text-sm leading-5 font-bold text-detail-text">
+					<span className="truncate text-sm leading-5 font-semibold text-detail-text">
 						{customer.name || <EmptyValue>No name on file</EmptyValue>}
 					</span>
 					<span className="truncate text-xs leading-4 font-normal text-detail-text">

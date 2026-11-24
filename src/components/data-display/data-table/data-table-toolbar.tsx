@@ -73,11 +73,11 @@ export function DataTableToolbar<TData>({
 			<div className="flex min-w-0 items-center gap-2">{leading}</div>
 			<div className="flex flex-wrap items-center gap-2 xl:justify-end">
 				{searchPlaceholder && (
-					<InputWrapper size="32" className="h-7.5 w-full rounded-control border-line sm:w-80">
+					<InputWrapper size="32" className="w-full sm:w-80">
 						<Search aria-hidden />
 						<Input
 							type="search"
-							className="text-xs leading-4 font-semibold text-ink placeholder:text-xs placeholder:leading-4 placeholder:font-semibold placeholder:text-ink-muted"
+
 							placeholder={searchPlaceholder}
 							aria-label={searchPlaceholder}
 							value={(table.getState().globalFilter as string | undefined) ?? ""}

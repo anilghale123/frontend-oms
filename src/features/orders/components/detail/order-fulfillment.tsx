@@ -57,7 +57,7 @@ export function OrderProgressTracker({ status, logs, nextStep }: OrderProgressTr
 	return (
 		<Panel flush>
 			<PanelHeader>
-				<PanelTitle className="text-lg leading-6.5 font-bold tracking-normal text-ink">
+				<PanelTitle className="text-2xl leading-8 font-normal tracking-normal text-ink">
 					Fulfillment
 				</PanelTitle>
 			</PanelHeader>
@@ -67,7 +67,7 @@ export function OrderProgressTracker({ status, logs, nextStep }: OrderProgressTr
 					className="flex flex-col gap-3 border-b border-primary-border bg-primary-accent px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
 				>
 					<div className="flex min-w-0 flex-col gap-0.5">
-						<p className="text-sm leading-5 font-bold text-ink">{nextStep.title}</p>
+						<p className="text-sm leading-5 font-semibold text-ink">{nextStep.title}</p>
 						<p className="text-xs leading-4 font-normal text-detail-text">{nextStep.description}</p>
 					</div>
 					{nextStep.actions && (
@@ -119,7 +119,9 @@ export function OrderProgressTracker({ status, logs, nextStep }: OrderProgressTr
 										className={cn(
 											"text-sm leading-5",
 											// Reached and current steps are Nunito; upcoming ones are Geist and muted.
-											upcoming ? "font-bold text-detail-inactive" : "font-bold text-detail-text",
+											upcoming
+												? "font-semibold text-detail-inactive"
+												: "font-semibold text-detail-text",
 										)}
 									>
 										{ORDER_STATUS_LABELS[step.status]}

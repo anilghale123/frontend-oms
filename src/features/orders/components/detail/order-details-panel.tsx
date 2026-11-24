@@ -17,7 +17,7 @@ export function OrderDetailsPanel({ order }: OrderDetailsPanelProps) {
 	return (
 		<Panel flush>
 			<PanelHeader>
-				<PanelTitle className="text-lg leading-6.5 font-bold tracking-normal text-ink">
+				<PanelTitle className="text-2xl leading-8 font-normal tracking-normal text-ink">
 					Delivery details
 				</PanelTitle>
 			</PanelHeader>

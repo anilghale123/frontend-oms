@@ -58,7 +58,7 @@ export type IconButtonProps = Omit<React.ComponentProps<"button">, "color"> & {
  */
 const FOCUS_OUTLINE =
 	"focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-1 focus-visible:outline-solid focus-visible:outline-offset-3"
-const BUTTON_TYPE = "rounded-none shadow-none font-source font-bold uppercase tracking-normal"
+const BUTTON_TYPE = "rounded-none shadow-none font-body text-xs leading-[15px] font-bold uppercase tracking-normal"
 
 const PRIMARY_BUTTON = `${BUTTON_TYPE} border-0 bg-btn-primary text-btn-primary-fg hover:bg-btn-primary-hover focus-visible:bg-btn-primary focus-visible:outline-btn-primary ${FOCUS_OUTLINE} disabled:bg-btn-primary-disabled disabled:text-btn-primary-fg`
 const SECONDARY_BUTTON = `${BUTTON_TYPE} border border-btn-secondary bg-btn-secondary-bg text-btn-secondary hover:border-btn-secondary-hover hover:bg-btn-secondary-bg hover:text-btn-secondary-hover focus-visible:border-btn-secondary-focus focus-visible:bg-btn-secondary-bg focus-visible:text-btn-secondary-focus focus-visible:outline-btn-secondary ${FOCUS_OUTLINE} disabled:border-btn-secondary-disabled disabled:bg-btn-secondary-disabled-bg disabled:text-btn-secondary-disabled`
@@ -125,7 +125,7 @@ export const buttonVariants = cva(
 				variant: "strong",
 				color: "primary",
 				size: "40",
-				className: "h-10 gap-2 px-6.5 py-0 text-sm leading-[18px]",
+				className: "h-10 gap-2 px-6.5 py-0 text-xs leading-[15px]",
 			},
 			{
 				variant: "strong",
@@ -214,7 +214,7 @@ export const buttonVariants = cva(
 				variant: "outline",
 				color: "primary",
 				size: "40",
-				className: "h-10 gap-2 px-6.5 py-0 text-sm leading-[18px]",
+				className: "h-10 gap-2 px-6.5 py-0 text-xs leading-[15px]",
 			},
 			{
 				variant: "outline",

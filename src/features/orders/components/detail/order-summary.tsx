@@ -22,7 +22,7 @@ export function OrderSummary({ order }: OrderSummaryProps) {
 					count > 1 && <span className="text-xs text-fg-secondary tabular-nums">{count} items</span>
 				}
 			>
-				<PanelTitle className="text-lg leading-6.5 font-bold tracking-normal text-ink">
+				<PanelTitle className="text-2xl leading-8 font-normal tracking-normal text-ink">
 					{single ? "Item" : "Items"}
 				</PanelTitle>
 			</PanelHeader>
@@ -40,20 +40,20 @@ export function OrderSummary({ order }: OrderSummaryProps) {
 			<PanelContent className="gap-2 border-t border-border text-sm">
 				<dl className="grid gap-2">
 					<div className="flex items-baseline justify-between gap-3">
-						<dt className="text-sm leading-5 font-bold text-detail-text">Points redeemed</dt>
+						<dt className="text-sm leading-5 font-semibold text-detail-text">Points redeemed</dt>
 						<dd className="text-xs leading-4 font-normal text-detail-text">
 							{order.points !== null ? formatPoints(order.points) : "None"}
 						</dd>
 					</div>
 					<div className="flex items-baseline justify-between gap-3">
-						<dt className="text-sm leading-5 font-bold text-detail-text">Cash paid</dt>
+						<dt className="text-sm leading-5 font-semibold text-detail-text">Cash paid</dt>
 						<dd className="text-xs leading-4 font-normal text-detail-text">
 							{order.amount !== null && order.amount > 0 ? formatRs(order.amount) : "None"}
 						</dd>
 					</div>
 					<div className="flex items-baseline justify-between gap-3 border-t border-border pt-2">
-						<dt className="text-sm leading-5 font-bold text-detail-text">Order value</dt>
-						<dd className="text-sm leading-5 font-bold text-detail-text">
+						<dt className="text-sm leading-5 font-semibold text-detail-text">Order value</dt>
+						<dd className="text-sm leading-5 font-semibold text-detail-text">
 							{formatOrderValue(order)}
 						</dd>
 					</div>
@@ -71,9 +71,9 @@ function ItemRow({ item }: { item: OrderItem }) {
 			</div>
 			<div className="flex min-w-0 flex-1 flex-col gap-1.5">
 				{item.name ? (
-					<p className="line-clamp-2 text-sm leading-5 font-bold text-ink">{item.name}</p>
+					<p className="line-clamp-2 text-sm leading-5 font-semibold text-ink">{item.name}</p>
 				) : (
-					<p className="text-sm leading-5 font-bold text-fg-tertiary">Unnamed item</p>
+					<p className="text-sm leading-5 font-semibold text-fg-tertiary">Unnamed item</p>
 				)}
 				<div className="flex flex-wrap items-center gap-2 text-xs leading-4 font-normal text-detail-text">
 					<span>

@@ -80,7 +80,7 @@ function Section({
 	return (
 		<AccordionItem value={value} className="border-border">
 			<AccordionTrigger className="group min-h-12 gap-2 px-4 py-3 hover:bg-fill1-alpha data-[state=open]:border-b data-[state=open]:border-border">
-				<span className="text-lg leading-6.5 font-bold tracking-normal text-ink">{title}</span>
+				<span className="text-2xl leading-8 font-normal tracking-normal text-ink">{title}</span>
 				<span className="ml-auto min-w-0 truncate text-xs leading-4 font-normal text-detail-text group-data-[state=open]:hidden">
 					{summary}
 				</span>
