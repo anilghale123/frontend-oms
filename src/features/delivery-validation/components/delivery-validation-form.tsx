@@ -138,6 +138,8 @@ export function DeliveryValidationForm() {
 									<Input
 										{...field}
 										size="48"
+										autoCapitalize="characters"
+										onChange={(event) => field.onChange(event.target.value.toUpperCase())}
 										autoComplete="off"
 										spellCheck={false}
 										disabled={pending}
@@ -188,7 +190,9 @@ export function DeliveryValidationForm() {
 			<QrScanSheet
 				open={scanOpen}
 				onOpenChange={setScanOpen}
-				onScan={(code) => form.setValue("voucherCode", code, { shouldValidate: true })}
+				onScan={(code) =>
+					form.setValue("voucherCode", code.toUpperCase(), { shouldValidate: true })
+				}
 			/>
 		</Form>
 	);

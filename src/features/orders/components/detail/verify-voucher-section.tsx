@@ -77,13 +77,14 @@ export function VerifyVoucherSection({ order }: VerifyVoucherSectionProps) {
 						id={inputId}
 						size="32"
 						autoComplete="off"
+						autoCapitalize="characters"
 						spellCheck={false}
 						placeholder="Enter Voucher Code"
 						value={code}
 						disabled={pending}
 						aria-invalid={error ? true : undefined}
 						aria-describedby={error ? `${inputId}-error` : undefined}
-						onChange={(event) => setCode(event.target.value)}
+						onChange={(event) => setCode(event.target.value.toUpperCase())}
 						className="min-w-0 flex-1 basis-40 placeholder:text-field-muted"
 					/>
 					<Button
