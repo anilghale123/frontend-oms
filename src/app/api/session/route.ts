@@ -22,7 +22,13 @@
 
 import { z } from "zod";
 import { trace, traceWarn } from "@/lib/debug";
-import { NO_STORE_HEADERS, isSameOrigin, jsonError, readJsonBody } from "../_shared";
+import {
+	NO_STORE_HEADERS,
+	expectedOrigins,
+	isSameOrigin,
+	jsonError,
+	readJsonBody,
+} from "../_shared";
 import { clearSessionCookie, setSessionCookie } from "./_cookie";
 
 /**
@@ -52,7 +58,7 @@ export async function POST(request: Request) {
 	if (!isSameOrigin(request)) {
 		traceWarn("session", "✖ step 20 · POST /api/session refused: cross-origin (check F)", {
 			origin: request.headers.get("origin"),
-			expected: new URL(request.url).origin,
+			expected: expectedOrigins(request),
 		});
 		return jsonError("forbidden", "Cross-origin request", 403);
 	}
@@ -86,7 +92,7 @@ export async function DELETE(request: Request) {
 	if (!isSameOrigin(request)) {
 		traceWarn("session", "✖ step 30 · DELETE /api/session refused: cross-origin (check F)", {
 			origin: request.headers.get("origin"),
-			expected: new URL(request.url).origin,
+			expected: expectedOrigins(request),
 		});
 		return jsonError("forbidden", "Cross-origin request", 403);
 	}
