@@ -38,10 +38,21 @@ const SECURITY_HEADERS = [
 	{ key: "X-Content-Type-Options", value: "nosniff" },
 	{ key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
 	{ key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
-	{ key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
 ];
 
+/**
+ * `Permissions-Policy`: nothing loaded into OMS can use the camera, microphone or location, except
+ * the rider's voucher scan, which opens the camera on `/deliver`. A browser that is told
+ * `camera=()` refuses the camera before it ever asks the rider, which looks like "camera access is
+ * blocked", so that one page allows its own origin (`self`) and nothing else does.
+ */
+const NO_DEVICE_ACCESS = "camera=(), microphone=(), geolocation=()";
+const RIDER_DEVICE_ACCESS = "camera=(self), microphone=(), geolocation=()";
+
 const nextConfig: NextConfig = {
+	// A self-contained server folder (`.next/standalone`) for the Docker image. Vercel ignores it.
+	output: "standalone",
+
 	// The dev indicator defaults to bottom-left, where it sits on top of the host portal's sidebar
 	// when OMS is embedded. Moved rather than disabled, so compile and runtime errors stay visible.
 	devIndicators: { position: "bottom-right" },
@@ -52,6 +63,14 @@ const nextConfig: NextConfig = {
 	async headers() {
 		return [
 			{ source: "/:path*", headers: SECURITY_HEADERS },
+			{
+				source: "/deliver",
+				headers: [{ key: "Permissions-Policy", value: RIDER_DEVICE_ACCESS }],
+			},
+			{
+				source: "/((?!deliver).*)",
+				headers: [{ key: "Permissions-Policy", value: NO_DEVICE_ACCESS }],
+			},
 			{
 				// Only the embedded surface is framable. Everything else stays same-origin only,
 				// so the rider portal and the landing page cannot be clickjacked.
