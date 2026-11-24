@@ -27,6 +27,7 @@ import { OrderDetailsPanel } from "./order-details-panel";
 import { OrderListPanel } from "./order-list-panel";
 import { OrderStatusMenu } from "./order-status-menu";
 import { OrderSummary } from "./order-summary";
+import { VerifyVoucherSection } from "./verify-voucher-section";
 import { StatusBadge } from "../status-badge";
 
 const BACK_LABEL = `Back to ${orderRouteTitles.orderQueue.title}`;
@@ -227,7 +228,14 @@ function OrderDetail({ order, back }: { order: Order; back: { href: string; labe
 				<PageBody>
 					<div className="grid items-start gap-4 xl:grid-cols-3">
 						<div className="flex flex-col gap-4 xl:col-span-2">
-							<OrderProgressTracker status={order.status} logs={order.logs} nextStep={nextStep} />
+							<OrderProgressTracker
+								status={order.status}
+								logs={order.logs}
+								nextStep={nextStep}
+								footer={
+									order.status === "delivering" ? <VerifyVoucherSection order={order} /> : undefined
+								}
+							/>
 							<OrderSummary order={order} />
 							<OrderDetailsPanel order={order} />
 						</div>
