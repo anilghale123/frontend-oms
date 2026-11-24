@@ -28,3 +28,18 @@ export const deliveryValidationSchema = z.object({
 });
 
 export type DeliveryValidationValues = z.infer<typeof deliveryValidationSchema>;
+
+/** What the voucher QR in the customer's Fonepoints app carries: `{"voucherCode": "8VMI05"}`. */
+export const voucherQrSchema = z.object({
+	voucherCode: z.string().trim().min(1),
+});
+
+/** The voucher number in a scanned QR code, or null when the QR isn't a Fonepoints voucher. */
+export function parseVoucherQr(text: string): string | null {
+	try {
+		const result = voucherQrSchema.safeParse(JSON.parse(text));
+		return result.success ? result.data.voucherCode : null;
+	} catch {
+		return null;
+	}
+}
