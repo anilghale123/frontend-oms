@@ -34,6 +34,8 @@ export interface OrderProgressTrackerProps {
 	logs: OrderLog[];
 	/** The merchant's next step, shown in a highlighted bar above the steps. */
 	nextStep?: FulfillmentNextStep;
+	/** Content under the steps, inside the card and aligned with them (the voucher check). */
+	footer?: ReactNode;
 }
 
 export interface FulfillmentNextStep {
@@ -51,7 +53,12 @@ export interface FulfillmentNextStep {
  * Custom rather than Radian `Stepper`: its separator centres on the whole trigger, so it cannot
  * join the icon centres when labels sit under the icons.
  */
-export function OrderProgressTracker({ status, logs, nextStep }: OrderProgressTrackerProps) {
+export function OrderProgressTracker({
+	status,
+	logs,
+	nextStep,
+	footer,
+}: OrderProgressTrackerProps) {
 	const steps = buildFulfillmentSteps(status, logs);
 
 	return (
@@ -141,6 +148,7 @@ export function OrderProgressTracker({ status, logs, nextStep }: OrderProgressTr
 					})}
 				</ol>
 			</PanelContent>
+			{footer && <div className="px-4 pb-4">{footer}</div>}
 		</Panel>
 	);
 }

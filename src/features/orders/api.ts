@@ -6,6 +6,7 @@ import type {
 	PortalEnvelope,
 	PortalList,
 	PortalOrder,
+	RiderDeliverResponse,
 	UpdateOrderStatusRequest,
 } from "@/lib/api/contracts";
 import { API_ENDPOINTS, withQuery } from "@/lib/api/endpoints";
@@ -59,6 +60,22 @@ export async function assignRider(referenceId: string, body: AssignRiderRequest)
 		body,
 	);
 	return orderFrom(res);
+}
+
+/**
+ * Checks the customer's voucher code for an order that is out for delivery. When it matches, the
+ * server marks the order Delivered and sends it back; a wrong code is a `400` with the server's
+ * message. Returns `null` if the server confirmed without sending the order.
+ */
+export async function verifyVoucher(
+	referenceId: string,
+	voucherCode: string,
+): Promise<Order | null> {
+	const res = await apiClient.post<RiderDeliverResponse | undefined>(
+		API_ENDPOINTS.orders.verifyVoucher(referenceId),
+		{ voucher_code: voucherCode },
+	);
+	return res?.data ? toOrder(res.data) : null;
 }
 
 /**

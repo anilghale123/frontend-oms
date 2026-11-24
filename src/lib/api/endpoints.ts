@@ -23,6 +23,8 @@ export const API_ENDPOINTS = {
 		status: (referenceId: string) => `/orders/${encode(referenceId)}/status`,
 		/** POST `{ rider, remarks? }`. Records the rider and moves the order to `delivering`. */
 		assignRider: (referenceId: string) => `/orders/${encode(referenceId)}/assign-rider`,
+		/** POST `{ voucher_code }`. Marks a delivering order delivered when the code matches. */
+		verifyVoucher: (referenceId: string) => `/orders/${encode(referenceId)}/verify-voucher`,
 	},
 	rider: {
 		/** POST `{ order_id, voucher_code }`, relative to `RIDER_API_BASE`. */
