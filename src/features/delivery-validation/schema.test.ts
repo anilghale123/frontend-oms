@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deliveryValidationSchema } from "./schema";
+import { deliveryValidationSchema, parseVoucherQr } from "./schema";
 
 const valid = { orderId: " oms-0427 ", voucherCode: " V-1234 ", turnstileToken: "0.token" };
 
@@ -40,5 +40,17 @@ describe("deliveryValidationSchema", () => {
 			"Enter the Order ID",
 			"Enter the voucher code",
 		]);
+	});
+});
+
+describe("parseVoucherQr", () => {
+	it("reads the voucher number from the customer's QR code", () => {
+		expect(parseVoucherQr('{"voucherCode": " 8VMI05 "}')).toBe("8VMI05");
+	});
+
+	it("returns null for a QR code that is not a Fonepoints voucher", () => {
+		expect(parseVoucherQr("https://example.com")).toBeNull();
+		expect(parseVoucherQr('{"voucher": "8VMI05"}')).toBeNull();
+		expect(parseVoucherQr('{"voucherCode": "  "}')).toBeNull();
 	});
 });

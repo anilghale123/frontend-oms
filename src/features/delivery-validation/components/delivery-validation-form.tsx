@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ScanLine } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -22,6 +23,7 @@ import type { DeliveryResult } from "../api";
 import { useConfirmDelivery } from "../hooks/use-confirm-delivery";
 import { deliveryValidationSchema, type DeliveryValidationValues } from "../schema";
 import { DeliveryConfirmed } from "./delivery-confirmed";
+import { QrScanSheet } from "./qr-scan-sheet";
 import { TurnstileWidget } from "./turnstile-widget";
 
 /** Why the last attempt failed, which decides what the rider is told to do next. */
@@ -49,6 +51,7 @@ export function DeliveryValidationForm() {
 		null,
 	);
 	const [failure, setFailure] = useState<{ message: string; kind: FailureKind } | null>(null);
+	const [scanOpen, setScanOpen] = useState(false);
 	// A new key draws a new Turnstile widget, so the rider gets a fresh check (and token).
 	const [checkRound, setCheckRound] = useState(0);
 
@@ -130,15 +133,29 @@ export function DeliveryValidationForm() {
 					render={({ field }) => (
 						<FormItem>
 							<FormLabel>Voucher code</FormLabel>
-							<FormControl>
-								<Input
-									{...field}
+							<div className="flex gap-2">
+								<FormControl>
+									<Input
+										{...field}
+										size="48"
+										autoComplete="off"
+										spellCheck={false}
+										disabled={pending}
+										className="min-w-0 flex-1"
+									/>
+								</FormControl>
+								<Button
+									type="button"
 									size="48"
-									autoComplete="off"
-									spellCheck={false}
+									variant="outline"
+									color="neutral"
 									disabled={pending}
-								/>
-							</FormControl>
+									onClick={() => setScanOpen(true)}
+								>
+									<ScanLine aria-hidden />
+									Scan QR
+								</Button>
+							</div>
 							<FormMessage />
 						</FormItem>
 					)}
@@ -168,6 +185,11 @@ export function DeliveryValidationForm() {
 					Confirm delivery
 				</Button>
 			</form>
+			<QrScanSheet
+				open={scanOpen}
+				onOpenChange={setScanOpen}
+				onScan={(code) => form.setValue("voucherCode", code, { shouldValidate: true })}
+			/>
 		</Form>
 	);
 }
