@@ -4,6 +4,7 @@ export { AppearanceSync } from "./appearance-sync";
 export { MobileShell, type MobileShellProps } from "./mobile-shell";
 export { Page, PageBody, type PageBodyProps, type PageProps } from "./page";
 export { PageHeader, type PageHeaderProps } from "./page-header";
+export { TopBar, type TopBarProps } from "./top-bar";
 export {
 	Panel,
 	PanelContent,

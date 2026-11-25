@@ -29,7 +29,7 @@ const geistSans = Geist({
 const sourceSans = Source_Sans_3({
 	variable: "--font-source-sans",
 	subsets: ["latin"],
-	weight: ["700"],
+	weight: ["400", "700"],
 });
 
 const geistMono = Geist_Mono({

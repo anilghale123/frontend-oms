@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { EMBED_BASE_PATH } from "@/config/constants";
-import { OrderRoutesProvider, OrderScreenSkeleton } from "@/features/orders";
+import { OrderRoutesProvider, OrderScreenSkeleton, OrderTopBar } from "@/features/orders";
 import { SessionGate } from "@/features/shell";
 import { AuthProvider } from "@/providers/AuthProvider";
 import { HostChannelProvider } from "@/providers/HostChannelProvider";
@@ -9,8 +9,8 @@ import { HostSync } from "@/providers/HostSync";
 /**
  * The merchant's OMS: the order screens, rendered inside the Fonepoints Business portal's iframe.
  *
- * This is the only merchant surface. The portal supplies the sidebar, header and page chrome, so
- * this layout renders none of it and supplies only the page padding.
+ * This is the only merchant surface. The portal supplies only its sidebar; OMS draws its own
+ * "Order Management" top bar (`OrderTopBar`, with a back arrow on an order) across the frame, then the page padding.
  *
  * `OrderRoutesProvider` prefixes every order link with `/embed`, so navigating inside the iframe
  * stays on this surface.
@@ -38,8 +38,11 @@ export default function EmbedLayout({ children }: { children: ReactNode }) {
 			<AuthProvider>
 				<OrderRoutesProvider basePath={EMBED_BASE_PATH}>
 					<HostSync />
-					<div className="flex h-dvh flex-col overflow-y-auto bg-fill1 p-4">
-						<SessionGate fallback={<OrderScreenSkeleton />}>{children}</SessionGate>
+					<div className="flex h-dvh flex-col bg-fill1">
+						<OrderTopBar />
+						<div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
+							<SessionGate fallback={<OrderScreenSkeleton />}>{children}</SessionGate>
+						</div>
 					</div>
 				</OrderRoutesProvider>
 			</AuthProvider>

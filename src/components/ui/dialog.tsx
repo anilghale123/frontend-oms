@@ -38,6 +38,7 @@ const dialogOverlayVariants = cva(
 	{
 		variants: {
 			backdrop: {
+				white: "bg-overlay",
 				blackOverlay: "bg-black/50",
 				whiteOverlay: "bg-white/50",
 				blur: "backdrop-blur-sm",
@@ -45,7 +46,7 @@ const dialogOverlayVariants = cva(
 			},
 		},
 		defaultVariants: {
-			backdrop: "blackOverlay",
+			backdrop: "white",
 		},
 	}
 )
@@ -64,7 +65,7 @@ const DialogClose = DialogPrimitive.Close
 
 function DialogOverlay({
 	className,
-	backdrop = "blackOverlay",
+	backdrop = "white",
 	...props
 }: DialogOverlayProps) {
 	return (
@@ -89,7 +90,7 @@ function DialogContent({
 			<DialogPrimitive.Content
 				data-slot="dialog-content"
 				className={cn(
-					"bg-bg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 border-alpha group fixed top-1/2 left-1/2 z-50 flex w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col rounded-2xl border shadow-lg duration-200 sm:max-w-lg",
+					"bg-bg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 group fixed top-1/2 left-1/2 z-50 flex w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col rounded-dialog border-0 shadow-dialog duration-200 sm:max-w-lg",
 					className
 				)}
 				{...props}>

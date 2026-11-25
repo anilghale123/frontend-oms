@@ -76,7 +76,7 @@ export function useOrderStatusChange(order: Order): OrderStatusChange {
 				<ConfirmStatusDialog
 					open
 					onOpenChange={(open) => !open && setConfirmTo(null)}
-					omsOrderId={order.omsOrderId}
+					omsOrderId={order.omsOrderId || order.referenceId}
 					from={order.status}
 					to={confirmTo}
 					onConfirm={async () => {

@@ -142,8 +142,7 @@ export function AssignRiderDialog({
 						<DialogFooter>
 							<Button
 								type="button"
-								variant="outline"
-								color="primary"
+								color="default"
 								size="40"
 								onClick={() => onOpenChange(false)}
 								disabled={pending}
