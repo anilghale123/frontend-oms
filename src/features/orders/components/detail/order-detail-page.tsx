@@ -209,10 +209,7 @@ function OrderDetail({ order }: { order: Order }) {
 
 	return (
 		<>
-			<Page
-				title={displayId}
-				badge={<StatusBadge status={order.status} />}
-			>
+			<Page title={displayId} badge={<StatusBadge status={order.status} />}>
 				<PageBody>
 					<div className="grid items-start gap-4 xl:grid-cols-3">
 						<div className="flex flex-col gap-4 xl:col-span-2">
