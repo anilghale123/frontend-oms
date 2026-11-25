@@ -7,7 +7,6 @@ import { Page, PageBody } from "@/components/layout";
 import { CopyButton, EmptyState, ErrorState } from "@/components/feedback";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { orderRoutes as orderRouteTitles } from "@/config/nav";
 import { ApiError } from "@/lib/api/client";
 import { toErrorMessage } from "@/lib/api/errors";
 import { decodePathSegment } from "@/lib/utils";
@@ -18,7 +17,6 @@ import {
 	type Order,
 	type OrderStatus,
 } from "@/lib/domain";
-import { useOrderRoutes } from "../../order-routes";
 import { useOrder } from "../../hooks/use-orders";
 import { useOrderStatusChange } from "../../hooks/use-order-status-change";
 import { OrderProgressTracker } from "./order-fulfillment";
@@ -29,8 +27,6 @@ import { OrderStatusMenu } from "./order-status-menu";
 import { OrderSummary } from "./order-summary";
 import { VerifyVoucherSection } from "./verify-voucher-section";
 import { StatusBadge } from "../status-badge";
-
-const BACK_LABEL = `Back to ${orderRouteTitles.orderQueue.title}`;
 
 /**
  * The next-step bar's copy per status. While Assign rider is off (`ASSIGN_RIDER_ENABLED`) the page
@@ -113,8 +109,6 @@ export function OrderDetailLayout({ children, placeholder = false }: OrderDetail
  * primary action, and a "Change status" menu with the statuses ahead (none once final).
  */
 export function OrderDetailPage({ referenceId, placeholder = false }: OrderDetailPageProps) {
-	const orderRoutes = useOrderRoutes();
-	const back = { href: orderRoutes.queue, label: BACK_LABEL };
 	const {
 		data: order,
 		isLoading,
@@ -128,7 +122,7 @@ export function OrderDetailPage({ referenceId, placeholder = false }: OrderDetai
 
 	if (placeholder || isLoading) {
 		return (
-			<Page title={referenceId} back={back}>
+			<Page title={referenceId}>
 				<PageBody>
 					<div className="grid items-start gap-4 xl:grid-cols-3">
 						<div className="flex flex-col gap-4 xl:col-span-2">
@@ -148,7 +142,7 @@ export function OrderDetailPage({ referenceId, placeholder = false }: OrderDetai
 	if (isError || !order) {
 		const notFound = error instanceof ApiError && error.status === 404;
 		return (
-			<Page title={referenceId} back={back}>
+			<Page title={referenceId}>
 				<PageBody>
 					{notFound ? (
 						<EmptyState
@@ -169,10 +163,10 @@ export function OrderDetailPage({ referenceId, placeholder = false }: OrderDetai
 		);
 	}
 
-	return <OrderDetail order={order} back={back} />;
+	return <OrderDetail order={order} />;
 }
 
-function OrderDetail({ order, back }: { order: Order; back: { href: string; label: string } }) {
+function OrderDetail({ order }: { order: Order }) {
 	const statusChange = useOrderStatusChange(order);
 	const action = primaryAction(order.status);
 	// The OMS id when the API sent one; otherwise the partner's, so the title is never blank.
@@ -217,7 +211,6 @@ function OrderDetail({ order, back }: { order: Order; back: { href: string; labe
 		<>
 			<Page
 				title={displayId}
-				back={back}
 				badge={
 					<>
 						<CopyButton value={displayId} label="order ID" />

@@ -51,7 +51,8 @@ export function DataTableCard<TData>({
 	className,
 	...view
 }: DataTableCardProps<TData>) {
-	const showPagination = !view.loading && !view.error && table.getPageCount() > 1;
+	// Shown whenever there are rows, even on a single page, so a large page size can be changed back.
+	const showPagination = !view.loading && !view.error && table.getRowCount() > 0;
 
 	return (
 		<div

@@ -143,6 +143,40 @@
 	--color-btn-secondary-bg: #ffffff;
 	--color-btn-secondary-disabled: #e3e0fb;
 	--color-btn-secondary-disabled-bg: #f6f6f6;
+	/* Default buttons (gray): Cancel and other neutral actions. */
+	--color-btn-default: #798085;
+	--color-btn-default-hover: #3e4851;
+	--color-btn-default-focus: #1d2730;
+	--color-btn-default-disabled: #c5c8cb;
+	--color-btn-default-fg: #ffffff;
+
+	/*
+	 * Square corners everywhere: the whole radius scale is 0, so every `rounded-*` class (Radian
+	 * primitives included) draws a rectangle. `rounded-full` keeps avatars, dots and tracker
+	 * circles round. Only modals keep a small radius (`rounded-dialog`).
+	 */
+	--radius: 0;
+	--radius-xs: 0;
+	--radius-sm: 0;
+	--radius-md: 0;
+	--radius-lg: 0;
+	--radius-xl: 0;
+	--radius-2xl: 0;
+	--radius-3xl: 0;
+	--radius-4xl: 0;
+
+	/* Modals: white page wash behind, a shadow to lift the card off it. */
+	--color-overlay: #ffffff;
+	--radius-dialog: 4px;
+	--shadow-dialog: 0 8px 20px rgb(0 0 0 / 0.16);
+	--color-dialog-text: #3e4851;
+	--color-dialog-close: #c5c8cb;
+	--color-dialog-badge: #fff5eb;
+
+	/* Pagination: disabled arrow and the current page. */
+	--color-ink-disabled: #b5b8c0;
+	--color-page-current: #4d5ee3;
+	--color-page-current-fg: #ffffff;
 
 	/* Order detail page text, matching the Fonepoints merchant app (all Nunito). */
 	--color-detail-text: #23252b;
@@ -199,6 +233,15 @@
 	--color-detail-inactive: var(--color-fg-tertiary);
 	--color-btn-secondary-bg: var(--color-bg);
 	--color-btn-secondary-disabled-bg: var(--color-fill1);
+	--color-btn-default-disabled: var(--color-fill3);
+	--color-btn-default-focus: var(--color-fill4);
+	--color-overlay: var(--color-bg);
+	--shadow-dialog: 0 8px 20px rgb(0 0 0 / 0.5);
+	--color-dialog-text: var(--color-fg);
+	--color-dialog-close: var(--color-fg-tertiary);
+	--color-dialog-badge: var(--color-fonepoints-orange-accent);
+	--color-ink-disabled: var(--color-fg-disabled);
+	--color-page-current: #5f6fe8;
 	--color-line: var(--color-border);
 	--color-row-alt: var(--color-fill1);
 	--color-thumb: var(--color-fill1);

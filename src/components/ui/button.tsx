@@ -61,6 +61,12 @@ const FOCUS_OUTLINE =
 const BUTTON_TYPE = "rounded-none shadow-none font-body text-xs leading-[15px] font-bold uppercase tracking-normal"
 
 const PRIMARY_BUTTON = `${BUTTON_TYPE} border-0 bg-btn-primary text-btn-primary-fg hover:bg-btn-primary-hover focus-visible:bg-btn-primary focus-visible:outline-btn-primary ${FOCUS_OUTLINE} disabled:bg-btn-primary-disabled disabled:text-btn-primary-fg`
+/**
+ * Default (strong + default): the gray button for neutral actions such as Cancel. Same rectangle
+ * as Primary, in Source Sans; keyboard focus darkens it, drops to regular weight and adds the
+ * outline. Disabled has its own fill, so it never dims.
+ */
+const DEFAULT_BUTTON = `rounded-none shadow-none font-source font-bold uppercase tracking-normal border-0 bg-btn-default text-btn-default-fg hover:bg-btn-default-hover focus-visible:bg-btn-default-focus focus-visible:font-normal focus-visible:outline-btn-default ${FOCUS_OUTLINE} disabled:bg-btn-default-disabled disabled:text-btn-default-fg`
 const SECONDARY_BUTTON = `${BUTTON_TYPE} border border-btn-secondary bg-btn-secondary-bg text-btn-secondary hover:border-btn-secondary-hover hover:bg-btn-secondary-bg hover:text-btn-secondary-hover focus-visible:border-btn-secondary-focus focus-visible:bg-btn-secondary-bg focus-visible:text-btn-secondary-focus focus-visible:outline-btn-secondary ${FOCUS_OUTLINE} disabled:border-btn-secondary-disabled disabled:bg-btn-secondary-disabled-bg disabled:text-btn-secondary-disabled`
 
 export const buttonVariants = cva(
@@ -97,6 +103,7 @@ export const buttonVariants = cva(
 				error: "",
 				warning: "",
 				neutral: "",
+				default: "",
 			},
 		},
 		defaultVariants: {
@@ -134,6 +141,24 @@ export const buttonVariants = cva(
 				// The reference draws Small Primary in the disabled fill; hover and focus still apply.
 				className:
 					"h-8 gap-1.5 bg-btn-primary-disabled px-5 py-0 text-xs leading-[15px] text-btn-primary-fg",
+			},
+			{
+				variant: "strong",
+				color: "default",
+				className: DEFAULT_BUTTON,
+			},
+			// Regular (40, 14px) and Small (32, 12px).
+			{
+				variant: "strong",
+				color: "default",
+				size: "40",
+				className: "h-10 gap-2 px-6.5 py-0 text-sm leading-[18px]",
+			},
+			{
+				variant: "strong",
+				color: "default",
+				size: "32",
+				className: "h-8 gap-1.5 px-5 py-0 text-xs leading-[15px]",
 			},
 			{
 				variant: "strong",
@@ -506,9 +531,10 @@ function Button({
 	asChild = false,
 	...props
 }: ButtonProps) {
-	// Primary and Secondary have explicit disabled colors; every other variant dims.
+	// Primary, Secondary and Default have explicit disabled colors; every other variant dims.
 	const hasDisabledColors =
-		color === "primary" && (variant === "strong" || variant === "outline")
+		(color === "primary" && (variant === "strong" || variant === "outline")) ||
+		(color === "default" && variant === "strong")
 	const combinedClass = cn(
 		buttonVariants({ variant, size, color, loading }),
 		disabled && !hasDisabledColors && "opacity-50",

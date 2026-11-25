@@ -1,0 +1,88 @@
+name: Build and Push Docker Image on UAT (Next.js OMS)
+
+on:
+  push:
+    branches:
+      - uat
+
+env:
+  IMAGE_NAME: uat
+  SERVICE_NAME: fonepointsoms
+  SLACK_USERNAME: U071EPREKND
+
+  # Public values, inlined into the browser bundle at build time.
+  # Origins allowed to frame OMS and message it: the UAT Fonepoints Business portal.
+  NEXT_PUBLIC_EMBED_HOST_ORIGINS: https://fonepoints-business.vercel.app
+  # Cloudflare Turnstile site key; add the UAT OMS hostname to the widget in Cloudflare.
+  NEXT_PUBLIC_TURNSTILE_SITE_KEY: 0x4AAAAAAFWJUF0XlUkrHdy7
+  NEXT_PUBLIC_OMS_DEBUG: ""
+
+  # Server-only values, set in the image environment (see Dockerfile runner stage).
+  OMS_SALES_URL: https://uat-sales-api.providhy.com/
+  # This site's public origin, so the same-origin check works behind the reverse proxy.
+  OMS_PUBLIC_ORIGIN: https://uat-oms-fonepoints.providhy.com
+  TURNSTILE_SECRET_KEY: 0x4AAAAAAFWJUBusHmfpj8JhRmJyBO3kBQQ
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Refuse to build with placeholder values
+        run: |
+          if echo "$NEXT_PUBLIC_EMBED_HOST_ORIGINS" | grep -q REPLACE; then
+            echo "Set NEXT_PUBLIC_EMBED_HOST_ORIGINS to the UAT portal origin in this workflow." && exit 1
+          fi
+
+      - name: Login to Docker Hub
+        run: docker login -u providhydevelopment -p ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            --file Dockerfile \
+            --tag providhydevelopment/$IMAGE_NAME:${SERVICE_NAME}_${{ github.run_number }} \
+            --build-arg NEXT_PUBLIC_EMBED_HOST_ORIGINS="${NEXT_PUBLIC_EMBED_HOST_ORIGINS}" \
+            --build-arg NEXT_PUBLIC_TURNSTILE_SITE_KEY="${NEXT_PUBLIC_TURNSTILE_SITE_KEY}" \
+            --build-arg NEXT_PUBLIC_OMS_DEBUG="${NEXT_PUBLIC_OMS_DEBUG}" \
+            --build-arg OMS_SALES_URL="${OMS_SALES_URL}" \
+            --build-arg OMS_PUBLIC_ORIGIN="${OMS_PUBLIC_ORIGIN}" \
+            --build-arg TURNSTILE_SECRET_KEY="${TURNSTILE_SECRET_KEY}" \
+            .
+
+      - name: Push Docker image
+        run: |
+          docker push providhydevelopment/$IMAGE_NAME:${SERVICE_NAME}_${{ github.run_number }}
+
+      - name: Checkout Infra Repository
+        uses: actions/checkout@v4
+        with:
+          repository: ProvidhyDev/FRONTEND-MSA-INFRA
+          ref: uat
+          token: ${{ secrets.TOKEN_TO_COMMIT }}
+
+      - name: Update Docker Compose and Jenkinsfile
+        run: |
+          # Fails loudly if the service is not in the infra repo yet (sed would silently do nothing).
+          grep -q "${IMAGE_NAME}:${SERVICE_NAME}_" ./docker-compose.frontend.uat.yml \
+            || { echo "${SERVICE_NAME} is not in docker-compose.frontend.uat.yml; add it first."; exit 1; }
+
+          sed -i "s+providhydevelopment/${IMAGE_NAME}:${SERVICE_NAME}_.*+providhydevelopment/${IMAGE_NAME}:${SERVICE_NAME}_${{ github.run_number }}+g" ./docker-compose.frontend.uat.yml
+          sed -i "s+providhydevelopment/${IMAGE_NAME}:${SERVICE_NAME}_.*+providhydevelopment/${IMAGE_NAME}:${SERVICE_NAME}_${{ github.run_number }}+g" ./f1-appdetails.yaml
+
+          sed -i "s/SERVICE_NAME = '.*'/SERVICE_NAME = '${SERVICE_NAME}'/g" ./Jenkinsfile
+          sed -i "s/SLACK_USERNAME = '.*'/SLACK_USERNAME = '${SLACK_USERNAME}'/g" ./Jenkinsfile
+
+      - name: Commit and Push changes
+        run: |
+          git config --global user.email "amish.spices@gmail.com"
+          git config --global user.name "amishprodg"
+          git add .
+          git commit -m "Update ${SERVICE_NAME} service with build ${{ github.run_number }}"
+          git push -u origin uat
+
+      - name: Logout from Docker Hub
+        run: docker logout

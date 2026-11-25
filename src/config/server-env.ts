@@ -34,6 +34,26 @@ export const SALES_URL = sales.url;
 /** Why `SALES_URL` is empty, in words for the screen; `null` when it is set. */
 export const SALES_CONFIG_PROBLEM = sales.problem;
 
+/**
+ * This deployment's own public origin, e.g. `https://uat-oms-fonepoints.providhy.com`. Optional.
+ * The same-origin check (`isSameOrigin`) compares the browser's `Origin` with the address the server
+ * thinks it has; behind a reverse proxy (nginx in front of the Docker image) that address is the
+ * container's, not the public one, so every POST would be refused as cross-origin. Setting this names
+ * the public origin outright. Unset on Vercel and in development, where the request carries the
+ * right address.
+ */
+function readPublicOrigin(value: string | undefined): string | null {
+	const trimmed = value?.trim();
+	if (!trimmed) return null;
+	try {
+		return new URL(trimmed).origin;
+	} catch {
+		return null;
+	}
+}
+
+export const OMS_PUBLIC_ORIGIN = readPublicOrigin(process.env.OMS_PUBLIC_ORIGIN);
+
 /** `{SALES_URL}api/oms/portal/` — every merchant-portal endpoint lives under it. */
 export const SALES_PORTAL_API = SALES_URL ? `${SALES_URL}api/oms/portal/` : "";
 

@@ -12,6 +12,7 @@ const SALES_PORTAL_API = "https://sales.test/api/oms/portal/";
 const ORIGIN = "http://localhost:3000";
 
 vi.mock("@/config/server-env", () => ({
+	OMS_PUBLIC_ORIGIN: null,
 	SALES_CONFIG_PROBLEM: null,
 	SALES_PORTAL_API: "https://sales.test/api/oms/portal/",
 	UPSTREAM_TIMEOUT_MS: 15_000,

@@ -1,4 +1,5 @@
 import "server-only";
+import { OMS_PUBLIC_ORIGIN } from "@/config/server-env";
 
 /**
  * What every route handler under `src/app/api` shares: the error envelope, the same-origin check
@@ -16,6 +17,25 @@ export function jsonError(code: string, message: string, status: number): Respon
 }
 
 /**
+ * The origins a same-origin request may carry: the one in the request URL, the public address the
+ * proxy in front of this server forwarded (`X-Forwarded-Host` / `Host`, with `X-Forwarded-Proto`),
+ * and `OMS_PUBLIC_ORIGIN` when it is set. Behind a reverse proxy the URL alone names the container
+ * (`http://0.0.0.0:3000`), so a browser's real `Origin` would never match it.
+ */
+export function expectedOrigins(request: Request): string[] {
+	const url = new URL(request.url);
+	const origins = new Set([url.origin]);
+	const first = (value: string | null) => value?.split(",")[0]?.trim() || null;
+	const host = first(request.headers.get("x-forwarded-host")) ?? first(request.headers.get("host"));
+	if (host) {
+		const proto = first(request.headers.get("x-forwarded-proto")) ?? url.protocol.slice(0, -1);
+		origins.add(`${proto}://${host}`);
+	}
+	if (OMS_PUBLIC_ORIGIN) origins.add(OMS_PUBLIC_ORIGIN);
+	return [...origins];
+}
+
+/**
  * True when the request came from a page on this origin.
  *
  * `Origin` is set by the browser on every cross-origin request and on every same-origin `POST` and
@@ -27,7 +47,7 @@ export function jsonError(code: string, message: string, status: number): Respon
 export function isSameOrigin(request: Request): boolean {
 	const origin = request.headers.get("origin");
 	if (!origin) return true;
-	return origin === new URL(request.url).origin;
+	return expectedOrigins(request).includes(origin);
 }
 
 export type JsonBody = { ok: true; value: unknown } | { ok: false; status: 400 | 413 };

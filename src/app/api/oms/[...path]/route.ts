@@ -32,7 +32,7 @@ import {
 } from "@/config/server-env";
 import { NO_SESSION_CODE } from "@/lib/api/contracts";
 import { trace, traceWarn } from "@/lib/debug";
-import { isSameOrigin, jsonError as error, readJsonBody } from "../../_shared";
+import { expectedOrigins, isSameOrigin, jsonError as error, readJsonBody } from "../../_shared";
 import { clearSessionCookie, readSessionCookie } from "../../session/_cookie";
 import { matchProxyRoute } from "../_routes";
 
@@ -62,7 +62,7 @@ async function forward(request: Request, ctx: Context) {
 	if (!isSameOrigin(request)) {
 		traceWarn("proxy", `✖ ${request.method} /${path.join("/")} refused: cross-origin (check H)`, {
 			origin: request.headers.get("origin"),
-			expected: new URL(request.url).origin,
+			expected: expectedOrigins(request),
 		});
 		return error("forbidden", "Cross-origin request", 403);
 	}
