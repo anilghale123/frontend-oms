@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { useParams } from "next/navigation";
 import { CircleCheck, Package, PackageCheck, Truck, type LucideIcon } from "lucide-react";
 import { Page, PageBody } from "@/components/layout";
-import { CopyButton, EmptyState, ErrorState } from "@/components/feedback";
+import { EmptyState, ErrorState } from "@/components/feedback";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError } from "@/lib/api/client";
@@ -211,12 +211,7 @@ function OrderDetail({ order }: { order: Order }) {
 		<>
 			<Page
 				title={displayId}
-				badge={
-					<>
-						<CopyButton value={displayId} label="order ID" />
-						<StatusBadge status={order.status} />
-					</>
-				}
+				badge={<StatusBadge status={order.status} />}
 			>
 				<PageBody>
 					<div className="grid items-start gap-4 xl:grid-cols-3">
