@@ -175,7 +175,7 @@
 
 	/* Pagination: disabled arrow and the current page. */
 	--color-ink-disabled: #b5b8c0;
-	--color-page-current: #4d5ee3;
+	--color-page-current: #0d6efd;
 	--color-page-current-fg: #ffffff;
 
 	/* Order detail page text, matching the Fonepoints merchant app (all Nunito). */
@@ -241,7 +241,7 @@
 	--color-dialog-close: var(--color-fg-tertiary);
 	--color-dialog-badge: var(--color-fonepoints-orange-accent);
 	--color-ink-disabled: var(--color-fg-disabled);
-	--color-page-current: #5f6fe8;
+	--color-page-current: #0d6efd;
 	--color-line: var(--color-border);
 	--color-row-alt: var(--color-fill1);
 	--color-thumb: var(--color-fill1);
