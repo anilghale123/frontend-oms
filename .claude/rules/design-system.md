@@ -168,3 +168,5 @@ Never pick badge colors per page. Always use `StatusBadge` from `features/orders
   an `ink-muted` border that opens upward, aligned to the value, compact rows with no check mark,
   and the current or hovered row a solid `bg-option-current` (#3367D1, read from a screenshot).
   Styled with classes on the Radian `Select`; no new component.
+- 2026-11-25 (later): the order detail page has **no copy button** beside the order ID; the title is
+  followed by the status badge only (supersedes that part of the 2026-10-02 entry).
