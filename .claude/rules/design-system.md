@@ -159,3 +159,12 @@ Never pick badge colors per page. Always use `StatusBadge` from `features/orders
   which stays as the fallback for the seeded history. `SessionProvider` (the localStorage role) is
   deleted; `MOCK_MERCHANTS`/`MOCK_ROLE_LABELS` remain because the seeded activity log names actors
   by id.
+- 2026-11-25 (later): **1000 and 5000 items per page are offered** (supersedes the `MAX_PAGE_SIZE`
+  filter above). The Sales API still serves 100 per request, so `listOrders` puts a larger page
+  together from several requests, five at a time (10 for 1000, 50 for 5000, of the 60 a minute
+  allowed), and large lists are not refetched on window focus. A `429` shows the table's error
+  state. No new component.
+- 2026-11-25 (later): the **items-per-page list** matches the reference portal: a square box with
+  an `ink-muted` border that opens upward, aligned to the value, compact rows with no check mark,
+  and the current or hovered row a solid `bg-option-current` (#3367D1, read from a screenshot).
+  Styled with classes on the Radian `Select`; no new component.

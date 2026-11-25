@@ -9,10 +9,11 @@ import { toast } from "sonner";
 import { ApiError } from "@/lib/api/client";
 import { toErrorMessage } from "@/lib/api/errors";
 import { queryKeys } from "@/lib/api/query-keys";
-import type {
-	AssignRiderRequest,
-	ListOrdersParams,
-	UpdateOrderStatusRequest,
+import {
+	MAX_PAGE_SIZE,
+	type AssignRiderRequest,
+	type ListOrdersParams,
+	type UpdateOrderStatusRequest,
 } from "@/lib/api/contracts";
 import { ORDER_STATUS_LABELS, type Order, type OrderStatus } from "@/lib/domain";
 import { assignRider, getOrder, listOrders, updateOrderStatus } from "../api";
@@ -29,9 +30,12 @@ export interface OrderQueryOptions {
  * flash an empty table. Takes no merchant: the token decides whose orders these are.
  */
 export function useOrders(params: ListOrdersParams, { enabled = true }: OrderQueryOptions = {}) {
+	// A large page costs many requests, so returning to the tab does not fetch it again.
+	const large = (params.count ?? 0) > MAX_PAGE_SIZE;
 	return useQuery({
 		queryKey: queryKeys.orders.list({ ...params }),
-		queryFn: () => listOrders(params),
+		queryFn: ({ signal }) => listOrders(params, signal),
+		...(large && { staleTime: 5 * 60_000, refetchOnWindowFocus: false }),
 		placeholderData: keepPreviousData,
 		enabled,
 	});

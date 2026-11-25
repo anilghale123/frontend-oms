@@ -6,7 +6,6 @@ import { ClipboardList } from "lucide-react";
 import { PageBody } from "@/components/layout";
 import { DataTableCard, useDataTable } from "@/components/data-display";
 import { orderRoutes as orderRouteTitles } from "@/config/nav";
-import { MAX_PAGE_SIZE } from "@/lib/api/contracts";
 import { toErrorMessage } from "@/lib/api/errors";
 import { ORDER_STATUS_LABELS } from "@/lib/domain";
 import { useOrders } from "../../hooks/use-orders";
@@ -16,12 +15,6 @@ import { OrderStatusTabs, type OrderStatusFilter } from "./order-status-tabs";
 
 const route = orderRouteTitles.orderQueue;
 const columns = createOrderColumns();
-
-/**
- * Items-per-page choices. The Sales API serves at most `MAX_PAGE_SIZE` (100) per page, so the
- * larger choices only appear once it serves them; offering them sooner would page wrongly.
- */
-const PAGE_SIZES = [10, 25, 50, 100, 1000, 5000].filter((size) => size <= MAX_PAGE_SIZE);
 
 export interface OrderQueuePageProps {
 	/**
@@ -101,7 +94,6 @@ export function OrderQueuePage({ placeholder = false }: OrderQueuePageProps) {
 							}}
 						/>
 					}
-					pageSizes={PAGE_SIZES}
 					loading={placeholder || isLoading}
 					// The placeholder is a picture of the queue loading, never of its last failure: while
 					// OMS waits for a token, the cached query holds the 401 that started the wait.

@@ -95,7 +95,7 @@ export interface ListOrdersParams {
 	status?: OrderStatus;
 	/** From 1. */
 	page?: number;
-	/** Page size, at most `MAX_PAGE_SIZE`. */
+	/** Page size. Above `MAX_PAGE_SIZE`, `listOrders` combines several server pages. */
 	count?: number;
 }
 
