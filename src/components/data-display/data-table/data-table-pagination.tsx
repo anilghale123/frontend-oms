@@ -54,19 +54,32 @@ export function DataTablePagination<TData>({
 	return (
 		<div className="flex shrink-0 justify-end px-6 py-4">
 			<div className="flex flex-wrap items-center justify-end gap-x-7 gap-y-2 text-xs leading-4 font-bold whitespace-nowrap text-ink-muted">
-				<Select value={String(pageSize)} onValueChange={(v) => table.setPageSize(Number(v))}>
+				<Select
+					value={String(pageSize)}
+					onValueChange={(v) => table.setPageSize(Number(v))}
+					indicatorVisibility={false}
+				>
 					<SelectTrigger
 						size="32"
 						aria-label="Items per page"
-						className="h-auto w-auto gap-7 rounded-none border-0 bg-transparent p-0 text-xs leading-4 font-bold text-ink-muted shadow-none hover:text-ink focus-visible:ring-0 focus-visible:outline-1 focus-visible:outline-ink-muted [&>svg]:m-0 [&>svg]:size-3 [&>svg]:opacity-100"
+						className="h-auto w-auto gap-4 rounded-none border-0 bg-transparent p-0 text-xs leading-4 font-bold text-ink-muted shadow-none hover:text-ink focus-visible:ring-0 focus-visible:outline-1 focus-visible:outline-ink-muted [&>svg]:m-0 [&>svg]:size-3 [&>svg]:opacity-100"
 					>
 						<span>
 							Items per page:&nbsp; <SelectValue />
 						</span>
 					</SelectTrigger>
-					<SelectContent>
+					{/* A plain list box: opens upward under the value, the current row a solid block. */}
+					<SelectContent
+						side="top"
+						align="end"
+						className="min-w-12 rounded-none border-ink-muted shadow-none data-[side=top]:translate-y-0 data-[state=closed]:animate-none data-[state=open]:animate-none [&_[data-radix-select-viewport]]:min-w-0 [&_[data-radix-select-viewport]]:p-0"
+					>
 						{pageSizes.map((size) => (
-							<SelectItem key={size} value={String(size)}>
+							<SelectItem
+								key={size}
+								value={String(size)}
+								className="rounded-none px-1 py-1 text-xs leading-4 text-field-label tabular-nums focus:bg-option-current focus:text-option-current-fg"
+							>
 								{size}
 							</SelectItem>
 						))}
